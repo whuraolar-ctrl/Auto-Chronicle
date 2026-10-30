@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { ArrowRight } from 'lucide-react';
-import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type SubmitEvent,
+} from 'react';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
 
@@ -387,9 +393,46 @@ export default function CarFundPage() {
     fund && (summary?.balance ?? 0) >= fund.targetAmount,
   );
 
+  const coinBackground = Array.from({ length: 16 }, (_, index) => {
+    const negativeDrift = index % 2 === 0 ? -1 : 1;
+
+    return {
+      left: 8 + ((index * 17) % 76),
+      size: 14 + (index % 5) * 5,
+      duration: 12 + (index % 4) * 3,
+      delay: index * 0.8,
+      drift: negativeDrift * (18 + (index % 5) * 10),
+      rotation: 80 + index * 18,
+    };
+  });
+
   return (
     <AppPageLayout>
-      <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
+      <div className="car-fund-scene mx-auto max-w-3xl overflow-hidden rounded-[28px]">
+        <div className="coin-background" aria-hidden="true">
+          {coinBackground.map((coin, index) => {
+            const coinStyle: CSSProperties = {
+              left: `${coin.left}%`,
+              width: `${coin.size}px`,
+              height: `${coin.size}px`,
+              animationDuration: `${coin.duration}s`,
+              animationDelay: `${coin.delay}s`,
+              ['--coin-drift' as string]: `${coin.drift}px`,
+              ['--coin-rotation' as string]: `${coin.rotation}deg`,
+              ['--coin-delay' as string]: `${index * 0.25}s`,
+            };
+
+            return (
+              <span
+                key={`coin-${index}`}
+                className="coin-asset"
+                style={coinStyle}
+              />
+            );
+          })}
+        </div>
+
+        <div className="relative space-y-5 p-4 sm:space-y-6 sm:p-6">
         <header>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-400">
             A cushion for car costs
@@ -538,7 +581,7 @@ export default function CarFundPage() {
               >
                 {currencyOptions.map((code) => (
                   <option key={code} value={code}>
-                    {code}
+                    {code} · {new Intl.DisplayNames(undefined, { type: 'currency' }).of(code)}
                   </option>
                 ))}
               </select>
@@ -781,6 +824,7 @@ export default function CarFundPage() {
           collect, hold, or transfer money. Record contributions you make
           yourself and manually log car spending to keep the balance accurate.
         </p>
+        </div>
       </div>
     </AppPageLayout>
   );

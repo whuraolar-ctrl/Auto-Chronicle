@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage'));
 const AddVehiclePage = lazy(() => import('./pages/AddVehiclePage'));
@@ -60,6 +61,7 @@ function App() {
           <Route path="/reports/new" element={<IssueReportPage />} />
           <Route path="/fleet" element={<FleetManagementPage />} />
           <Route path="/car-fund" element={<CarFundPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
           <Route
             path="/vehicles/:vehicleId/repairs/new"
             element={<RepairsPage />}
