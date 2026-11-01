@@ -8,12 +8,12 @@ import {
   ChevronRight,
   ClipboardList,
   CreditCard,
-  DollarSign,
   LogOut,
   Settings,
   ShieldCheck,
   Target,
   UserRound,
+  Wallet,
   Wrench,
 } from 'lucide-react';
 import {
@@ -1195,13 +1195,13 @@ text-xs text-slate-500"
           <section className="rounded-3xl bg-slate-950 p-5 text-white shadow-sm sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-teal-300">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
                   YOUR SAVINGS
                 </p>
 
-                <h2 className="mt-2 text-xl font-bold">Car Fund</h2>
+                <h2 className="text-lg font-semibold text-[#F5F3E8]">Car Fund</h2>
 
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="text-sm text-[#C7D2CE]">
                   Prepare for future vehicle costs.
                 </p>
               </div>
@@ -1210,9 +1210,9 @@ text-xs text-slate-500"
                 className="flex h-11 w-11 items-center justify-center rounded-xl bg-
 white/10 text-xl"
               >
-                <DollarSign
+                <Wallet
                   aria-hidden="true"
-                  className="h-5 w-5 text-teal-300"
+                  className="h-6 w-6 text-teal-300"
                 />
               </span>
             </div>

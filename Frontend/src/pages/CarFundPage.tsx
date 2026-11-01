@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { ArrowRight } from 'lucide-react';
-import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type SubmitEvent,
+} from 'react';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
 
@@ -48,6 +54,163 @@ interface Spending {
 interface SpendingList {
   data: Spending[];
 }
+
+const currencyOptions = (
+  typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('currency')
+    : [
+        'AED',
+        'AFN',
+        'ALL',
+        'AMD',
+        'ANG',
+        'AOA',
+        'ARS',
+        'AUD',
+        'AWG',
+        'AZN',
+        'BAM',
+        'BBD',
+        'BDT',
+        'BGN',
+        'BHD',
+        'BIF',
+        'BMD',
+        'BND',
+        'BOB',
+        'BRL',
+        'BSD',
+        'BTN',
+        'BWP',
+        'BYN',
+        'BZD',
+        'CAD',
+        'CHF',
+        'CLP',
+        'CNY',
+        'COP',
+        'CRC',
+        'CUP',
+        'CVE',
+        'CZK',
+        'DJF',
+        'DKK',
+        'DOP',
+        'DZD',
+        'EGP',
+        'ETB',
+        'EUR',
+        'FJD',
+        'FKP',
+        'GBP',
+        'GEL',
+        'GHS',
+        'GIP',
+        'GMD',
+        'GNF',
+        'GTQ',
+        'GYD',
+        'HKD',
+        'HNL',
+        'HRK',
+        'HTG',
+        'HUF',
+        'IDR',
+        'ILS',
+        'INR',
+        'IQD',
+        'IRR',
+        'ISK',
+        'JMD',
+        'JOD',
+        'JPY',
+        'KES',
+        'KGS',
+        'KHR',
+        'KMF',
+        'KRW',
+        'KWD',
+        'KYD',
+        'KZT',
+        'LAK',
+        'LBP',
+        'LKR',
+        'LRD',
+        'LSL',
+        'LYD',
+        'MAD',
+        'MDL',
+        'MGA',
+        'MKD',
+        'MMK',
+        'MNT',
+        'MOP',
+        'MRU',
+        'MUR',
+        'MVR',
+        'MWK',
+        'MXN',
+        'MYR',
+        'MZN',
+        'NAD',
+        'NGN',
+        'NIO',
+        'NOK',
+        'NPR',
+        'NZD',
+        'OMR',
+        'PAB',
+        'PEN',
+        'PGK',
+        'PHP',
+        'PKR',
+        'PLN',
+        'PYG',
+        'QAR',
+        'RON',
+        'RSD',
+        'RUB',
+        'RWF',
+        'SAR',
+        'SBD',
+        'SCR',
+        'SEK',
+        'SGD',
+        'SHP',
+        'SLE',
+        'SOS',
+        'SRD',
+        'SSP',
+        'STN',
+        'SVC',
+        'SZL',
+        'THB',
+        'TJS',
+        'TMT',
+        'TND',
+        'TOP',
+        'TRY',
+        'TTD',
+        'TWD',
+        'TZS',
+        'UAH',
+        'UGX',
+        'USD',
+        'UYU',
+        'UZS',
+        'VES',
+        'VND',
+        'VUV',
+        'WST',
+        'XAF',
+        'XCD',
+        'XOF',
+        'XPF',
+        'YER',
+        'ZAR',
+        'ZMW',
+      ]
+).sort((a, b) => a.localeCompare(b));
 
 function messageFor(error: unknown, fallback: string): string {
   if (!axios.isAxiosError<{ message?: string | string[] }>(error)) {
@@ -230,9 +393,46 @@ export default function CarFundPage() {
     fund && (summary?.balance ?? 0) >= fund.targetAmount,
   );
 
+  const coinBackground = Array.from({ length: 16 }, (_, index) => {
+    const negativeDrift = index % 2 === 0 ? -1 : 1;
+
+    return {
+      left: 8 + ((index * 17) % 76),
+      size: 14 + (index % 5) * 5,
+      duration: 12 + (index % 4) * 3,
+      delay: index * 0.8,
+      drift: negativeDrift * (18 + (index % 5) * 10),
+      rotation: 80 + index * 18,
+    };
+  });
+
   return (
     <AppPageLayout>
-      <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
+      <div className="car-fund-scene mx-auto max-w-3xl overflow-hidden rounded-[28px]">
+        <div className="coin-background" aria-hidden="true">
+          {coinBackground.map((coin, index) => {
+            const coinStyle: CSSProperties = {
+              left: `${coin.left}%`,
+              width: `${coin.size}px`,
+              height: `${coin.size}px`,
+              animationDuration: `${coin.duration}s`,
+              animationDelay: `${coin.delay}s`,
+              ['--coin-drift' as string]: `${coin.drift}px`,
+              ['--coin-rotation' as string]: `${coin.rotation}deg`,
+              ['--coin-delay' as string]: `${index * 0.25}s`,
+            };
+
+            return (
+              <span
+                key={`coin-${index}`}
+                className="coin-asset"
+                style={coinStyle}
+              />
+            );
+          })}
+        </div>
+
+        <div className="relative space-y-5 p-4 sm:space-y-6 sm:p-6">
         <header>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-400">
             A cushion for car costs
@@ -379,10 +579,11 @@ export default function CarFundPage() {
                 onChange={(event) => setCurrency(event.target.value)}
                 className="app-input"
               >
-                <option value="NGN">NGN · Nigerian naira</option>
-                <option value="USD">USD · US dollar</option>
-                <option value="GBP">GBP · British pound</option>
-                <option value="EUR">EUR · Euro</option>
+                {currencyOptions.map((code) => (
+                  <option key={code} value={code}>
+                    {code} · {new Intl.DisplayNames(undefined, { type: 'currency' }).of(code)}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="space-y-2 text-sm">
@@ -623,6 +824,7 @@ export default function CarFundPage() {
           collect, hold, or transfer money. Record contributions you make
           yourself and manually log car spending to keep the balance accurate.
         </p>
+        </div>
       </div>
     </AppPageLayout>
   );

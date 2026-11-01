@@ -49,7 +49,7 @@ export default function CompleteProfilePage() {
         method: 'POST',
         body: JSON.stringify(form),
       });
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (requestError) {
       setError(
         requestError instanceof Error

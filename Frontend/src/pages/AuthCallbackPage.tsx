@@ -50,7 +50,7 @@ export default function AuthCallbackPage() {
         );
         if (!active) return;
 
-        navigate(profile.profileComplete ? '/' : '/complete-profile', {
+        navigate(profile.profileComplete ? '/dashboard' : '/complete-profile', {
           replace: true,
         });
       } catch (requestError) {

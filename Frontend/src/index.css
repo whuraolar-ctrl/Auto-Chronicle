@@ -93,9 +93,242 @@
   --app-green: #17453d;
   --app-green-soft: #e7f0eb;
   --app-coral: #f2a08a;
+  display: flex;
   min-height: 100vh;
   background: var(--app-paper);
   color: var(--app-ink);
+}
+
+@media (max-width: 1023px) {
+  .app-shell {
+    display: block;
+  }
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 100vh;
+  width: 280px;
+  flex-shrink: 0;
+  background: rgba(255, 254, 249, 0.96);
+  backdrop-filter: blur(18px);
+  border-right: 1px solid var(--app-border);
+  box-shadow: inset -1px 0 0 rgba(23, 60, 54, 0.04);
+}
+
+.app-sidebar-panel {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 1rem 1.25rem;
+}
+
+.app-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--app-border);
+  padding-top: 0.9rem;
+}
+
+.app-sidebar-footer .app-sidebar-link {
+  font-size: 0.85rem;
+}
+
+.app-sidebar-admin {
+  color: #8a6d1f;
+}
+
+.app-sidebar-admin:hover {
+  background: #faf3df;
+  color: #6b5213;
+}
+
+.app-sidebar-admin.active {
+  background: linear-gradient(135deg, #8a6d1f 0%, #b08c2a 100%);
+  color: white;
+  box-shadow: 0 12px 24px rgb(138 109 31 / 22%);
+}
+
+.app-sidebar-logout {
+  color: #a4453a;
+}
+
+.app-sidebar-logout:hover {
+  background: #fbeae7;
+  color: #8c2f24;
+  transform: translateX(2px);
+}
+
+.app-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--app-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app-sidebar-link:hover {
+  background: #f0efe7;
+  color: var(--app-ink);
+  transform: translateX(2px);
+}
+
+.app-sidebar-link.active {
+  background: linear-gradient(135deg, #17453d 0%, #1f5b50 100%);
+  color: white;
+  box-shadow: 0 12px 24px rgb(23 69 61 / 18%);
+}
+
+.app-sidebar-link svg {
+  transition: transform 160ms ease;
+}
+
+.app-sidebar-link:hover svg,
+.app-sidebar-link.active svg {
+  transform: scale(1.08);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--app-green);
+  text-decoration: none;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.app-brand:hover {
+  transform: translateY(-1px);
+  opacity: 0.96;
+}
+
+.app-brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(135deg, #1d5a4d 0%, #17453d 55%, #0f2f2a 100%);
+  color: #f7e8c8;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 22%),
+    0 10px 22px rgb(23 69 61 / 28%);
+}
+
+.app-brand-mark svg {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+/* subtle speed-line shimmer under the wheel icon */
+.app-brand-mark::after {
+  content: '';
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 0.32rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #f2a08a 50%, transparent);
+  opacity: 0.9;
+}
+
+.app-brand:hover .app-brand-mark svg {
+  transform: rotate(22deg);
+}
+
+.app-brand-mark svg {
+  transition: transform 260ms ease;
+}
+
+.app-brand-name {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.app-brand-subtitle {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--app-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-brand-mobile {
+  gap: 0.6rem;
+}
+
+.app-brand-mobile .app-brand-name {
+  font-size: 0.68rem;
+}
+
+.app-mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(255, 254, 249, 0.92);
+  backdrop-filter: blur(16px);
+  padding: 0.8rem 1rem;
+}
+
+.app-mobile-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.85rem;
+  background: white;
+  color: var(--app-ink);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.app-mobile-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgb(23 69 61 / 10%);
+}
+
+.app-mobile-toggle svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.app-mobile-nav-panel .app-sidebar-nav {
+  gap: 0.35rem;
 }
 
 .app-topbar {
@@ -113,6 +346,227 @@
 
 .app-nav::-webkit-scrollbar {
   display: none;
+}
+
+.car-fund-scene {
+  position: relative;
+  background:
+    radial-gradient(circle at top, rgba(23, 69, 61, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(14, 27, 25, 1) 0%, rgba(21, 35, 32, 1) 45%, rgba(23, 42, 38, 1) 100%);
+  border: 1px solid rgba(23, 69, 61, 0.18);
+  box-shadow: 0 20px 45px rgba(17, 31, 27, 0.08);
+}
+
+.car-fund-scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(18, 28, 26, 0.1), rgba(18, 28, 26, 0.04));
+  pointer-events: none;
+}
+
+.coin-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.coin-asset {
+  position: absolute;
+  top: -14%;
+  display: block;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, #fff7cf 0%, #f8dc78 26%, #d9a93d 52%, #9f6c1f 100%);
+  border: 1px solid rgba(151, 107, 45, 0.7);
+  box-shadow:
+    inset -6px -5px 10px rgba(108, 73, 21, 0.35),
+    inset 7px 7px 12px rgba(255, 255, 255, 0.6),
+    0 10px 18px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  animation-name: coin-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.coin-asset::before {
+  content: '$';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: rgba(99, 69, 15, 0.9);
+}
+
+.car-fund-scene h1,
+.car-fund-scene h2,
+.car-fund-scene h3,
+.car-fund-scene .text-gray-500,
+.car-fund-scene .text-gray-400,
+.car-fund-scene .text-gray-300,
+.car-fund-scene .text-muted,
+.car-fund-scene p,
+.car-fund-scene label,
+.car-fund-scene span,
+.car-fund-scene strong {
+  color: #e6efe9;
+}
+
+.car-fund-scene .app-input {
+  color: #173c36;
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(255, 255, 255, 0.38);
+}
+
+/* Restore the original ink/green colours inside the scene;
+   only the headings stay ivory */
+.car-fund-scene section,
+.car-fund-scene header {
+  color: var(--app-ink);
+}
+
+.car-fund-scene section :is(h1, h2, h3, p, label, span, strong),
+.car-fund-scene header :is(p, span) {
+  color: inherit;
+}
+
+.car-fund-scene .page-heading {
+  color: #ffffff;
+}
+
+/* Manual savings tracker keeps its coral-on-orange look; restore it */
+.car-fund-scene .text-orange-400 {
+  color: var(--app-coral);
+}
+
+/* Scene header sits on the dark top of the gradient — keep it light */
+.car-fund-scene header {
+  color: #f4f8f5;
+}
+
+.car-fund-scene header :is(p, span, strong, h1, h2, h3) {
+  color: inherit;
+}
+
+.car-fund-scene header .text-orange-400 {
+  color: #ffb59c;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 35%);
+}
+
+.app-shell .car-fund-scene header .text-gray-400 {
+  color: #ffffff !important;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 30%);
+}
+
+.app-shell .car-fund-scene header .page-heading {
+  color: #ffffff !important;
+}
+
+.app-shell .car-fund-scene header .text-orange-400 {
+  color: #ffb59c !important;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 35%);
+}
+
+/* Manual-savings disclaimer keeps its coral-on-orange look; restore it */
+.car-fund-scene .text-orange-300 {
+  color: #7c2d12;
+}
+
+.car-fund-scene p.text-orange-300 strong {
+  color: #431407;
+}
+
+.car-fund-scene .text-green-800 {
+  color: #166534;
+}
+
+.car-fund-scene .text-orange-700 {
+  color: #c2410c;
+}
+
+.car-fund-scene .text-red-700 {
+  color: #b91c1c;
+}
+
+.car-fund-scene .text-emerald-800 {
+  color: #065f46;
+}
+
+/* These win over the blanket .app-shell gray overrides further below */
+.app-shell .car-fund-scene header .text-gray-400 {
+  color: #ffffff !important;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 30%);
+}
+
+.app-shell .car-fund-scene header .page-heading {
+  color: #ffffff !important;
+}
+
+@keyframes coin-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.75);
+  }
+  12% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate3d(var(--coin-drift), 32vh, 0) rotate(var(--coin-rotation)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--coin-drift) * 1.7), 100vh, 0) rotate(calc(var(--coin-rotation) + 180deg)) scale(0.9);
+  }
+}
+
+@keyframes appNavDrawerIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes appBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.app-mobile-nav-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.app-mobile-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(23 40 36 / 45%);
+  animation: appBackdropIn 180ms ease-out;
+}
+
+.app-mobile-nav-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(19rem, 84vw);
+  overflow-y: auto;
+  border-right: 1px solid var(--app-border);
+  background: rgba(255, 254, 249, 0.98);
+  box-shadow: 18px 0 40px rgb(17 31 27 / 18%);
+  padding: 1.25rem 0.9rem 1.5rem;
+  animation: appNavDrawerIn 220ms ease-out;
 }
 
 @media (max-width: 639px) {
@@ -133,27 +587,6 @@
     flex: 1 0 calc(33.333% - 4px);
     text-align: center;
   }
-}
-
-.app-brand {
-  color: var(--app-green);
-}
-
-.app-nav-link {
-  color: var(--app-muted);
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.app-nav-link:hover {
-  background: #f0efe7;
-  color: var(--app-ink);
-}
-
-.app-nav-link.active {
-  background: var(--app-green);
-  color: white;
 }
 
 .app-shell [class~='bg-gray-950'],
