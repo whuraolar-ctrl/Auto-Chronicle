@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { AdminController } from "./admin.contoller";
+import { AdminController } from "./admin.controller";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
 
