@@ -99,7 +99,27 @@ export class FleetService {
     const activeVehicles = vehicles.filter((vehicle) => !vehicle.is_archived);
     const vehicleIds = activeVehicles.map((vehicle) => vehicle.id);
     const vehicleIdsSet = new Set(vehicleIds);
-    const issues = await this.fetchFleetIssues(vehicleIds);
+
+    /*
+     * The issue scan, monthly expenses, and new-report lookup are independent,
+     * so run them concurrently instead of sequentially — this was previously
+     * the main reason the dashboard endpoint felt slow to load.
+     */
+    const [issues, monthlyExpenses, reportsResult] = await Promise.all([
+      this.fetchFleetIssues(vehicleIds),
+      this.expenses.monthly(
+        userId,
+        { month: query.month ?? new Date().getMonth() + 1, year: query.year ?? new Date().getFullYear(), months: 1 },
+        vehicleIds,
+      ),
+      this.supabase.admin
+        .from('driver_reports')
+        .select(REPORT_COLUMNS, { count: 'exact' })
+        .eq('fleet_id', query.fleetId)
+        .eq('status', 'new')
+        .order('created_at', { ascending: false })
+        .limit(5),
+    ]);
     const vehicleIdsNeedingAttention = new Set(
       activeVehicles
         .filter(
@@ -121,19 +141,7 @@ export class FleetService {
 
     const month = query.month ?? new Date().getMonth() + 1;
     const year = query.year ?? new Date().getFullYear();
-    const monthlyExpenses = await this.expenses.monthly(
-      userId,
-      { month, year, months: 1 },
-      vehicleIds,
-    );
-    const { data: newReports, count, error: reportsError } =
-      await this.supabase.admin
-        .from('driver_reports')
-        .select(REPORT_COLUMNS, { count: 'exact' })
-        .eq('fleet_id', query.fleetId)
-        .eq('status', 'new')
-        .order('created_at', { ascending: false })
-        .limit(5);
+    const { data: newReports, count, error: reportsError } = reportsResult;
 
     if (reportsError) {
       throw new InternalServerErrorException('Unable to load fleet dashboard');
