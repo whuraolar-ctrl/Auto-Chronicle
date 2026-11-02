@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardList,
   CreditCard,
+  DollarSign,
   LogOut,
   Settings,
   ShieldCheck,
@@ -28,7 +29,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
 
-/* Types */
+
 
 interface Fleet {
   id: string;
@@ -139,7 +140,7 @@ interface ApiErrorResponse {
   message?: string | string[];
 }
 
-/* Helpers */
+
 
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
@@ -300,180 +301,90 @@ export default function DashboardPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  /* Authenticated user */
+  /* Authenticated user, fleets, vehicles, and car fund — loaded in parallel */
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadUserName() {
-      try {
-        /*
-         * This assumes your existing API exposes GET /auth/me.
-         * If your frontend already obtains the profile from an auth context,
-         * use that existing context instead of adding a second auth request.
-         */
-        const response = await api.get('/auth/me');
+    async function loadDashboardData() {
+    /*
+     * The auth/me check, fleet list, vehicle cards, and car-fund state are all
+     * independent, so fetch them concurrently instead of sequentially. This is
+     * the main fix for the dashboard feeling slow right after signing in.
+     */
+    const [meResult, fleetsResult, vehiclesResult, fundResult] =
+      await Promise.allSettled([
+        api.get('/auth/me'),
+        api.get('/fleets'),
+        api.get<VehicleListResponse>('/vehicles', {
+          params: { page: 1, limit: 4, archived: false },
+        }),
+        api.get<FundSummary>('/car-fund'),
+      ]);
 
-        if (cancelled) {
-          return;
-        }
+    if (cancelled) return;
 
-        const payload =
-          response.data?.user ??
-          response.data?.data?.user ??
-          response.data?.data ??
-          response.data;
+    if (meResult.status === 'fulfilled') {
+      const payload =
+        meResult.value.data?.user ??
+        meResult.value.data?.data?.user ??
+        meResult.value.data?.data ??
+        meResult.value.data;
 
-        const profile = payload?.profile ?? payload;
+      const profile = payload?.profile ?? payload;
 
-        const firstName = profile?.firstName ?? profile?.first_name ?? '';
+      const firstName = profile?.firstName ?? profile?.first_name ?? '';
+      const lastName = profile?.lastName ?? profile?.last_name ?? '';
 
-        const lastName = profile?.lastName ?? profile?.last_name ?? '';
+      const fullName =
+        profile?.fullName ??
+        profile?.full_name ??
+        profile?.name ??
+        `${firstName} ${lastName}`.trim();
 
-        const fullName =
-          profile?.fullName ??
-          profile?.full_name ??
-          profile?.name ??
-          `${firstName} ${lastName}`.trim();
+      setUserName(typeof fullName === 'string' ? fullName.trim() : '');
+      setUserEmail(typeof (profile?.email ?? payload?.email) === 'string' ? (profile?.email ?? payload?.email) : '');
+    }
 
-        setUserName(typeof fullName === 'string' ? fullName.trim() : '');
+    if (fleetsResult.status === 'fulfilled') {
+      const payload = fleetsResult.value.data?.data ?? fleetsResult.value.data;
+      const fleetList: Fleet[] = Array.isArray(payload) ? payload : [];
 
-        const email = profile?.email ?? payload?.email ?? '';
+      setFleets(fleetList);
+      setSelectedFleetId((current) =>
+        current && fleetList.some((fleet) => fleet.id === current)
+          ? current
+          : (fleetList[0]?.id ?? ''),
+      );
+    }
+    setFleetsLoading(false);
 
-        setUserEmail(typeof email === 'string' ? email : '');
-      } catch {
-        /*
-         * The greeting still works if the endpoint is unavailable.
-         * Do not invent a user name.
-         */
-        if (!cancelled) {
-          setUserName('');
-        }
+    if (vehiclesResult.status === 'fulfilled') {
+      setVehicles(vehiclesResult.value.data.data ?? []);
+      setTotalVehicles(vehiclesResult.value.data.meta?.total ?? 0);
+    } else {
+      setPageError(getErrorMessage(vehiclesResult.reason));
+    }
+    setVehiclesLoading(false);
+
+    if (fundResult.status === 'fulfilled') {
+      setFundSummary(fundResult.value.data);
+    } else {
+      const reason = fundResult.reason;
+      /*
+       * A missing Car Fund is a valid state for a new user.
+       * Keep it separate from a genuine request failure.
+       */
+      if (axios.isAxiosError(reason) && reason.response?.status === 404) {
+        setFundSummary(null);
+      } else {
+        setPageError(getErrorMessage(reason));
       }
     }
-
-    void loadUserName();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /* Vehicles */
-
-  const loadVehicles = useCallback(async () => {
-    setVehiclesLoading(true);
-
-    try {
-      const response = await api.get<VehicleListResponse>('/vehicles', {
-        params: {
-          page: 1,
-          limit: 4,
-          archived: false,
-        },
-      });
-
-      setVehicles(response.data.data ?? []);
-
-      setTotalVehicles(response.data.meta?.total ?? 0);
-    } catch (error) {
-      throw new Error(getErrorMessage(error));
-    } finally {
-      setVehiclesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadVehicles().catch((error: unknown) => {
-      setPageError(getErrorMessage(error));
-    });
-  }, [loadVehicles]);
-
-  /* Car Fund */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFund() {
-      setFundLoading(true);
-
-      try {
-        const response = await api.get<FundSummary>('/car-fund');
-
-        if (!cancelled) {
-          setFundSummary(response.data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          /*
-           * A missing Car Fund is a valid state for a new user.
-           * Keep it separate from a genuine request failure.
-           */
-          if (axios.isAxiosError(error) && error.response?.status === 404) {
-            setFundSummary(null);
-          } else {
-            setPageError(getErrorMessage(error));
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setFundLoading(false);
-        }
-      }
+    setFundLoading(false);
     }
 
-    void loadFund();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /* Fleets */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFleets() {
-      setFleetsLoading(true);
-
-      try {
-        const response = await api.get('/fleets');
-
-        if (cancelled) {
-          return;
-        }
-
-        const payload = response.data?.data ?? response.data;
-
-        const fleetList: Fleet[] = Array.isArray(payload) ? payload : [];
-
-        setFleets(fleetList);
-
-        setSelectedFleetId((current) => {
-          if (current && fleetList.some((fleet) => fleet.id === current)) {
-            return current;
-          }
-
-          return fleetList[0]?.id ?? '';
-        });
-      } catch {
-        /*
-         * Personal vehicle dashboard functionality remains available
-         * even when the user has no fleet or fleet access is unavailable.
-         */
-        if (!cancelled) {
-          setFleets([]);
-          setSelectedFleetId('');
-        }
-      } finally {
-        if (!cancelled) {
-          setFleetsLoading(false);
-        }
-      }
-    }
-
-    void loadFleets();
+    void loadDashboardData();
 
     return () => {
       cancelled = true;

@@ -41,6 +41,7 @@ export class EmailRemindersService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmailRemindersService.name);
   private interval?: ReturnType<typeof setInterval>;
   private running = false;
+  private remindersDisabled = false;
 
   constructor(
     private readonly supabase: SupabaseService,
@@ -48,23 +49,40 @@ export class EmailRemindersService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    void this.dispatch().catch(() => {
-      this.logger.error('Email reminder dispatch failed');
+    const apiKey = this.config.getOrThrow<string>('RESEND_API_KEY');
+    const from = this.config.getOrThrow<string>('EMAIL_FROM');
+
+    if (!apiKey || !from) {
+      this.remindersDisabled = true;
+
+      this.logger.warn('Email reminders are disabled: RESEND_API_KEY and/or EMAIL_FROM is missing. Configure both environment variables and redeploy to enable reminders.',
+      );
+      return;
+    }
+
+    void this.dispatch().catch((error:unknown) => {
+      this.logger.error('Email reminder dispatch failed',
+        error instanceof Error ? error.stack : String(error),
+      );
     });
     this.interval = setInterval(() => {
-      void this.dispatch().catch(() => {
-        this.logger.error('Email reminder dispatch failed');
+      void this.dispatch().catch((error:unknown) => {
+        this.logger.error('Email reminder dispatch failed',
+          error instanceof Error ? error.stack : String(error),
+        );
       });
     }, POLL_INTERVAL_MS);
     this.interval.unref?.();
   }
 
   onModuleDestroy() {
-    if (this.interval) clearInterval(this.interval);
+    if (this.interval) {
+      clearInterval(this.interval);
+    }
   }
 
   private async dispatch() {
-    if (this.running) return;
+    if (this.remindersDisabled || this.running) return;
     this.running = true;
     try {
       const [vehicles, funds] = await Promise.all([
@@ -294,8 +312,8 @@ export class EmailRemindersService implements OnModuleInit, OnModuleDestroy {
     html: string,
     text: string,
   ) {
-    const apiKey = this.config.get<string>('RESEND_API_KEY');
-    const from = this.config.get<string>('EMAIL_FROM');
+    const apiKey = this.config.getOrThrow<string>('RESEND_API_KEY');
+    const from = this.config.getOrThrow<string>('EMAIL_FROM');
     if (!apiKey || !from) {
       throw new InternalServerErrorException(
         'Email reminders require RESEND_API_KEY and EMAIL_FROM',
