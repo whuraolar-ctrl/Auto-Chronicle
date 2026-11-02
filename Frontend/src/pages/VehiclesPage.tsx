@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { CarFront, Plus, X } from 'lucide-react';
+import { CarFront, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppPageLayout from '../components/AppPageLayout';
@@ -135,6 +135,8 @@ export default function VehiclesPage() {
   const [savingVehicle, setSavingVehicle] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingVehicle, setDeletingVehicle] = useState<Vehicle | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadVehicles = useCallback(async () => {
     setLoading(true);
@@ -184,6 +186,21 @@ export default function VehiclesPage() {
   const closeForm = () => {
     setFormMode(null);
     setEditingVehicleId(null);
+  };
+
+  const handleDeleteVehicle = async () => {
+    if (!deletingVehicle) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.delete(`/vehicles/${deletingVehicle.id}`);
+      setDeletingVehicle(null);
+      await loadVehicles();
+    } catch (requestError: unknown) {
+      setError(errorMessage(requestError, 'Unable to delete the vehicle.'));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSaveVehicle = async (event: SubmitEvent<HTMLFormElement>) => {
@@ -572,9 +589,37 @@ export default function VehiclesPage() {
                           {vehicle.year} {vehicle.make} {vehicle.model}
                         </p>
                       </div>
-                      <span className="rounded-lg border border-gray-800 bg-gray-950 px-2.5 py-1 font-mono text-xs">
-                        {vehicle.plate_number}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-lg border border-gray-800 bg-gray-950 px-2.5 py-1 font-mono text-xs">
+                          {vehicle.plate_number}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditForm(vehicle)}
+                            aria-label={`Edit ${vehicle.name || vehicle.model}`}
+                            title="Edit vehicle"
+                            className="group grid h-9 w-9 place-items-center rounded-xl border border-gray-800 bg-gray-950 text-gray-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-green-700 hover:bg-green-800 hover:text-white hover:shadow-lg hover:shadow-green-900/40 active:scale-95"
+                          >
+                            <Pencil
+                              aria-hidden="true"
+                              className="h-4 w-4 transition-transform duration-300 group-hover:rotate-[-8deg]"
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingVehicle(vehicle)}
+                            aria-label={`Delete ${vehicle.name || vehicle.model}`}
+                            title="Delete vehicle"
+                            className="group grid h-9 w-9 place-items-center rounded-xl border border-gray-800 bg-gray-950 text-gray-400 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-800 hover:bg-red-900 hover:text-white hover:shadow-lg hover:shadow-red-900/40 active:scale-95"
+                          >
+                            <Trash2
+                              aria-hidden="true"
+                              className="h-4 w-4 transition-transform duration-300 group-hover:rotate-8"
+                            />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     <p className="mt-4 text-xs text-gray-500">
                       {vehicle.mileage_km === null
@@ -584,13 +629,6 @@ export default function VehiclesPage() {
                       {formatServiceDate(vehicle.next_service)}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(vehicle)}
-                        className="app-secondary-button"
-                      >
-                        Edit details
-                      </button>
                       <button
                         type="button"
                         onClick={() =>
@@ -641,6 +679,62 @@ export default function VehiclesPage() {
           </section>
         )}
       </div>
+
+      {deletingVehicle && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-vehicle-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => !deleting && setDeletingVehicle(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-red-950 text-red-400">
+                <Trash2 aria-hidden="true" className="h-6 w-6" />
+              </span>
+              <div>
+                <h2
+                  id="delete-vehicle-title"
+                  className="text-lg font-semibold"
+                >
+                  Delete this vehicle?
+                </h2>
+                <p className="mt-2 text-sm text-gray-400">
+                  You're about to permanently delete{' '}
+                  <strong className="text-gray-200">
+                    {deletingVehicle.name ||
+                      `${deletingVehicle.make} ${deletingVehicle.model}`}
+                  </strong>{' '}
+                  ({deletingVehicle.plate_number}) and all of its history. This
+                  cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDeletingVehicle(null)}
+                disabled={deleting}
+                className="rounded-xl border border-gray-800 px-5 py-3 text-sm font-medium text-gray-300 transition hover:bg-gray-800 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteVehicle()}
+                disabled={deleting}
+                className="rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-800 disabled:opacity-60"
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete vehicle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppPageLayout>
   );
 }

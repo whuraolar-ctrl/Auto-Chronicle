@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardList,
   CreditCard,
+  DollarSign,
   LogOut,
   Settings,
   ShieldCheck,
@@ -28,7 +29,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
 
-/* Types */
+
 
 interface Fleet {
   id: string;
@@ -139,7 +140,7 @@ interface ApiErrorResponse {
   message?: string | string[];
 }
 
-/* Helpers */
+
 
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
