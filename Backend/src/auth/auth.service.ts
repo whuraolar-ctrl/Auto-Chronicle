@@ -366,7 +366,7 @@ export class AuthService {
     return { message: 'Profile updated successfully.', profile: data };
   }
 
-  /** Creates the profile for an already-authenticated user (e.g. Google sign-in). */
+  /** Create a profile for an existing authenticated user. */
   async completeProfile(user: User, dto: CompleteProfileDto) {
     if (!user.email) {
       throw new BadRequestException('Account has no email address');

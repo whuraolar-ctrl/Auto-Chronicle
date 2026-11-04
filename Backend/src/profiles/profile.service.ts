@@ -81,8 +81,7 @@ export class ProfileService {
 
     const row = data as ProfileRow;
 
-    /** After the user confirms an email change, Supabase Auth has the new email
-    but our profile row still has the old one. Sync it here.*/
+    /** After the user confirms an email change, Supabase Auth has. */
     const authEmail = user.email?.toLowerCase();
 
     if (authEmail && authEmail !== row.email) {
@@ -263,10 +262,7 @@ export class ProfileService {
     return { message: 'Password updated successfully' };
   }
 
-  /**
-   * Starts an email change. Supabase emails a confirmation link; the email only
-   * changes once the user confirms it. GET /profile then syncs the profile row.
-   */
+  /** * Starts an email change. Supabase emails a confirmation link;. */
   async changeEmail(user: User, accessToken: string, dto: ChangeEmailDto) {
     const newEmail = dto.newEmail.trim().toLowerCase();
 
@@ -337,7 +333,7 @@ export class ProfileService {
     return { message: 'Signed out of all devices' };
   }
 
-  /** Confirms the user's password. Rejects Google-only accounts (they have no password). */
+  /** Confirms the user's password. Rejects Google-only accounts (they have no. */
   private async verifyCurrentPassword(
     user: User,
     password: string,
@@ -350,7 +346,7 @@ export class ProfileService {
       throw new BadRequestException(googleOnlyMessage);
     }
 
-    // 400, not 401, so the app doesn't treat a wrong password as an expired session.
+    // Return 400 so the app treats this as a bad password, not an expired session.
     const { error } = await this.supabase
       .createAuthClient()
       .auth.signInWithPassword({ email: user.email, password });

@@ -15,7 +15,7 @@ export class MonthlyExpensesQueryDto {
   @Max(2100)
   year: number;
 
-  /** How many months the trend covers, ending with the selected month. Default 6. */
+  /** How many months the trend covers, ending with the selected. */
   @IsOptional()
   @Type(() => Number)
   @IsInt()

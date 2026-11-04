@@ -8,17 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-/**
- * Every error the API returns has this shape:
- * {
- * statusCode: 400,
- * code: 'VALIDATION_ERROR', // stable value the frontend can branch on
- * message: 'Validation failed', // safe to show to the user
- * details: ['phone must be ...'], // only for validation errors
- * path: '/api/auth/register',
- * timestamp: '2026-10-13T10:00:00.000Z'
- * }
- */
+/** * Every error the API returns has this shape: *. */
 export interface ApiErrorBody {
   statusCode: number;
   code: string;

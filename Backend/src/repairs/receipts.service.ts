@@ -16,11 +16,7 @@ import {
 import { MediaRow } from './repairs.mapper';
 import { detectReceiptType } from './receipt-type';
 
-/**
- * Stores receipt files in the private `receipts` bucket and their details in
- * the `media` table. It does NOT check who may touch a repair. RepairsService
- * does that first, then calls this.
- */
+/** * Stores receipt files in the private receipts bucket and. */
 @Injectable()
 export class ReceiptsService {
   private readonly logger = new Logger(ReceiptsService.name);

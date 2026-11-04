@@ -12,7 +12,7 @@ import { ACCOUNT_TYPES } from '../../auth/auth.constants';
 import type { AccountType } from '../../auth/auth.constants';
 import { normalizePhone } from '../../common/utils/phone';
 
-/** Every field is optional. Send only what changed. Email has its own flow: POST /profile/change-email. */
+/** Every field is optional. Send only what changed. Email has. */
 export class UpdateProfileDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(50)
   firstName?: string;

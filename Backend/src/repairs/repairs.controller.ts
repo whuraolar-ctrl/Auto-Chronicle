@@ -28,7 +28,7 @@ import { RepairsService } from './repairs.service';
 export class RepairsController {
   constructor(private readonly repairs: RepairsService) {}
 
-  /** Send an `Idempotency-Key` header (a UUID) so a retry never records the repair twice. */
+  /** Send an Idempotency-Key header (a UUID) so a retry never. */
   @Post('vehicles/:vehicleId/repairs')
   create(
     @CurrentUser() user: User,
@@ -56,7 +56,7 @@ export class RepairsController {
     return this.repairs.get(user.id, repairId);
   }
 
-  /** multipart/form-data with one file in the field named `file` (JPG, PNG or PDF). */
+  /** multipart/form-data with one file in the field named file (JPG,. */
   @Post('repairs/:repairId/receipt')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseInterceptors(

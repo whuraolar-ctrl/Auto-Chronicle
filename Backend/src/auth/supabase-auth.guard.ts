@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
-/** Verifies `Authorization: Bearer <access token>` and attaches the user to the request. */
+/** Verifies Authorization: Bearer <access token> and attaches the user to. */
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   constructor(private readonly supabase: SupabaseService) {}
