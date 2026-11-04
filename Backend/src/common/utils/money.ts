@@ -25,7 +25,7 @@ export function fromMinor(minor: number, currency: string): number {
     return new Decimal(minor).div(minorUnitFactor(currency)).toNumber();
 }
 
-/** Converts integer minor units using a rate expressed as target major units per source major unit. */
+/** Converts integer minor units using a rate expressed as target. */
 export function convertMinor(
     minor: number,
     rate: number | string,

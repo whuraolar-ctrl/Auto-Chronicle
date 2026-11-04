@@ -7,7 +7,7 @@ import {
 
 import { SupabaseService } from '../../supabase/supabase.service';
 
-/** Centralizes personal ownership and fleet-member access checks for vehicles. */
+/** Checks who can access each vehicle. */
 @Injectable()
 export class VehicleAccessService {
   constructor(private readonly supabase: SupabaseService) {}

@@ -213,9 +213,7 @@ export class AdminService {
       joinedAt: String(row.created_at),
     }));
   }
-  /** Subscription and revenue figures. 
-    If the billing tables don't exist yet (migration not applied),
-    the dashboard still works and shows zeros. */ 
+  /** Subscription and revenue figures. If the billing tables don't exist. */ 
   private async billing(
     since: Date,
   ) {
@@ -226,6 +224,9 @@ export class AdminService {
             .from('subscriptions')
             .select('id, user_id, amount, currency, billing_interval')
             .eq('status', 'active')
+            // A status of 'active' is not enough: the paid period may already
+            // have ended, so only count subscriptions that have not expired.
+            .gt('current_period_end', new Date().toISOString())
             .order('id', { ascending: true })
             .range(from, to),
         ),
