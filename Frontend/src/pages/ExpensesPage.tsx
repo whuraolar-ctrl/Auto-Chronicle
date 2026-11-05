@@ -198,10 +198,10 @@ export default function ExpensesPage() {
             <p className="relative text-sm font-medium text-orange-100/70">
               Total repair spend
             </p>
-            <p className="relative mt-3 break-all text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <p className="relative mt-3 break-all text-3xl font-bold tracking-tight text-[#5EEAD4] sm:text-4xl">
               {formatMoney(expenses.total, expenses.currency)}
             </p>
-            <p className="relative mt-2 text-sm text-orange-100/60">
+            <p className="relative mt-2 text-sm text-gray-300">
               Across your accessible vehicles this month
             </p>
           </div>

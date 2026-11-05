@@ -40,10 +40,7 @@ export type IssueSeverity = (typeof ISSUE_SEVERITIES)[number];
 export type IssueTiming = (typeof ISSUE_TIMINGS)[number];
 export type IssueStatus = (typeof ISSUE_STATUSES)[number];
 
-/**
- * Which status an issue may move to next. Moves only go forward, and "fixed"
- * is final for now. Confirm with Product whether a fixed issue can be reopened.
- */
+/** * Which status an issue may move to next. Moves. */
 export const ALLOWED_TRANSITIONS: Record<IssueStatus, IssueStatus[]> = {
   reported: ['being_checked', 'being_fixed', 'fixed'],
   being_checked: ['being_fixed', 'fixed'],

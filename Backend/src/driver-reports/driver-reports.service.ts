@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   ConflictException,
@@ -80,7 +79,9 @@ export class DriverReportsService {
       throw new InternalServerErrorException('Unable to load driver reports');
     }
     return paginate(
-      ((data ?? []) as DriverReportRow[]).map(toDriverReportResponse),
+      await this.withIssueStatus(
+        ((data ?? []) as DriverReportRow[]).map(toDriverReportResponse),
+      ),
       count ?? 0,
       query,
     );
@@ -106,7 +107,9 @@ export class DriverReportsService {
       throw new InternalServerErrorException('Unable to load driver reports');
     }
     return paginate(
-      ((data ?? []) as DriverReportRow[]).map(toDriverReportResponse),
+      await this.withIssueStatus(
+        ((data ?? []) as DriverReportRow[]).map(toDriverReportResponse),
+      ),
       count ?? 0,
       query,
     );
@@ -138,7 +141,9 @@ export class DriverReportsService {
         error.code === 'P0001' &&
         error.message.includes('driver_report_not_convertible')
       ) {
-        throw new ConflictException('Driver report is not eligible for conversion');
+        throw new ConflictException(
+          'Driver report is not eligible for conversion',
+        );
       }
       this.logger.error(`Driver report conversion failed for ${reportId}`);
       throw new InternalServerErrorException('Unable to convert driver report');
@@ -192,5 +197,41 @@ export class DriverReportsService {
     }
     if (!data) throw new NotFoundException('Driver report not found');
     return data as DriverReportRow;
+  }
+
+  private async withIssueStatus(
+    reports: Array<ReturnType<typeof toDriverReportResponse>>,
+  ) {
+    const loggedReportIds = reports
+      .filter((report) => report.status === 'logged')
+      .map((report) => report.id);
+    const issuesByReport = new Map<string, { id: string; status: string }>();
+
+    if (loggedReportIds.length) {
+      const { data, error } = await this.supabase.admin
+        .from('issues')
+        .select('id, source_driver_report_id, status')
+        .in('source_driver_report_id', loggedReportIds);
+      if (error) {
+        throw new InternalServerErrorException('Unable to load driver reports');
+      }
+      for (const issue of data ?? []) {
+        if (issue.source_driver_report_id) {
+          issuesByReport.set(issue.source_driver_report_id, {
+            id: issue.id,
+            status: issue.status,
+          });
+        }
+      }
+    }
+
+    return reports.map((report) => {
+      const issue = issuesByReport.get(report.id);
+      return {
+        ...report,
+        issueId: issue?.id ?? null,
+        issueStatus: issue?.status ?? null,
+      };
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const AcceptInvitationPage = lazy(() => import('./pages/AcceptInvitationPage'));
 const AddVehiclePage = lazy(() => import('./pages/AddVehiclePage'));
@@ -21,6 +22,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const VehicleDetailPage = lazy(() => import('./pages/VehicleDetailPage'));
 const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
 const WelcomePage = lazy(() => import('./pages/WelcomePage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 
 function App() {
   return (
@@ -52,6 +54,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/vehicles/new" element={<AddVehiclePage />} />
@@ -60,6 +63,7 @@ function App() {
           <Route path="/reports/new" element={<IssueReportPage />} />
           <Route path="/fleet" element={<FleetManagementPage />} />
           <Route path="/car-fund" element={<CarFundPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
           <Route
             path="/vehicles/:vehicleId/repairs/new"
             element={<RepairsPage />}

@@ -376,7 +376,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => navigate(-1)}
               aria-label="Go back"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 text-2xl transition hover:bg-white/10"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/40 bg-white/15 text-white transition hover:bg-white/30"
             >
               <ArrowLeft aria-hidden="true" className="h-5 w-5" />
             </button>
@@ -391,7 +391,7 @@ export default function ProfilePage() {
                 setSuccess('');
                 setError('');
               }}
-              className="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              className="rounded-xl border border-[#f5f3eb] bg-[#f5f3eb] px-4 py-2 text-sm font-semibold text-[#173c36] transition hover:bg-white"
             >
               {' '}
               Edit{' '}

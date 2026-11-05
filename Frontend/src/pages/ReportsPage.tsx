@@ -8,6 +8,8 @@ interface DriverReport {
   id: string;
   vehicleId: string;
   reportedBy: string;
+  issueId?: string | null;
+  issueStatus?: 'reported' | 'being_checked' | 'being_fixed' | 'fixed' | null;
   category: string;
   severity: string;
   timing: string;
@@ -78,12 +80,22 @@ export default function ReportsPage() {
 
   const handleAction = async (
     reportId: string,
-    action: 'convert' | 'dismiss',
+    action: 'convert' | 'dismiss' | 'under_review' | 'fixed',
+    issueId?: string | null,
   ) => {
     setBusyReportId(reportId);
     setActionError(null);
     try {
-      await api.post(`/driver-reports/${reportId}/${action}`);
+      if (action === 'under_review' || action === 'fixed') {
+        if (!issueId) {
+          throw new Error('This report is not linked to an issue yet.');
+        }
+        await api.patch(`/issues/${issueId}/status`, {
+          status: action === 'under_review' ? 'being_checked' : 'fixed',
+        });
+      } else {
+        await api.post(`/driver-reports/${reportId}/${action}`);
+      }
       await fetchReports();
     } catch (requestError: unknown) {
       setActionError(
@@ -195,6 +207,55 @@ export default function ReportsPage() {
                         >
                           Dismiss
                         </button>
+                      </div>
+                    )}
+                    {report.status === 'logged' && report.issueId && (
+                      <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                        {report.issueStatus === 'fixed' ? (
+                          <span className="rounded-lg bg-green-100 px-3 py-2 text-xs font-semibold text-green-800">
+                            Fixed and closed
+                          </span>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-400">
+                              {report.issueStatus === 'reported'
+                                ? 'Choose how to track this report.'
+                                : 'This issue is still open.'}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {report.issueStatus === 'reported' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAction(
+                                      report.id,
+                                      'under_review',
+                                      report.issueId,
+                                    )
+                                  }
+                                  disabled={busyReportId !== null}
+                                  className="rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Mark under review
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleAction(
+                                    report.id,
+                                    'fixed',
+                                    report.issueId,
+                                  )
+                                }
+                                disabled={busyReportId !== null}
+                                className="rounded-lg bg-green-700 px-3 py-2 text-xs font-medium text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Mark fixed and close
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

@@ -15,6 +15,8 @@ import { FleetModule } from './fleet/fleet.module';
 import { CarFundModule } from './car-fund/car-fund.module';
 import { EmailRemindersModule } from './email-reminders/email-reminders.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AdminModule } from './admin/admin.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     CarFundModule,
     EmailRemindersModule,
     NotificationsModule,
+    AdminModule,
+    BillingModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -31,7 +31,7 @@ export type MediaRow = {
   created_at: string;
 };
 
-/** What ReceiptsService.toResponse returns (includes a short-lived signed URL). */
+/** Receipt payload returned to the client. */
 export type ReceiptResponse = {
   id: string;
   mimeType: string;
@@ -41,10 +41,7 @@ export type ReceiptResponse = {
   uploadedAt: string;
 };
 
-/**
- * `extra.receipt` is passed when one repair is returned (with a signed URL).
- * `extra.hasReceipt` is passed for lists (no URLs generated for every row).
- */
+/** * extra.receipt is passed when one repair is returned (with. */
 export function toRepairResponse(
   row: RepairRow,
   parts: RepairPartRow[],

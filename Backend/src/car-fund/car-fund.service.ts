@@ -8,6 +8,7 @@ import {
 import { paginate } from '../common/pagination/paginate';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateCarFundContributionDto } from './dto/create-car-fund-contribution.dto';
+import { CreateCarFundSpendingDto } from './dto/create-car-fund-spending.dto';
 import { ListCarFundContributionsQueryDto } from './dto/list-car-fund-contributions-query.dto';
 import {
   ContributionCadence,
@@ -35,9 +36,18 @@ type ContributionRow = {
   created_at: string;
 };
 
+type SpendingRow = {
+  id: string;
+  amount: number | string;
+  spent_at: string;
+  note: string | null;
+  created_at: string;
+};
+
 const FUND_COLUMNS =
   'id, user_id, target_amount, currency, target_date, contribution_cadence, planned_contribution_amount, reminders_enabled, created_at, updated_at';
 const CONTRIBUTION_COLUMNS = 'id, amount, contributed_at, note, created_at';
+const SPENDING_COLUMNS = 'id, amount, spent_at, note, created_at';
 
 @Injectable()
 export class CarFundService {
@@ -45,14 +55,18 @@ export class CarFundService {
 
   async get(userId: string) {
     const fund = await this.findFund(userId, false);
-    if (!fund) return { fund: null, balance: 0, progressPercent: 0 };
+    if (!fund) {
+      return { fund: null, balance: 0, spent: 0, progressPercent: 0 };
+    }
     return this.toSummary(fund);
   }
 
   async updateGoal(userId: string, dto: UpdateCarFundGoalDto) {
     const currency = dto.currency.toUpperCase();
     if (!/^[A-Z]{3}$/.test(currency)) {
-      throw new BadRequestException('currency must be a three-letter currency code');
+      throw new BadRequestException(
+        'currency must be a three-letter currency code',
+      );
     }
 
     const cadence = dto.contributionCadence ?? null;
@@ -142,10 +156,7 @@ export class CarFundService {
     return this.toSummary(data as CarFundRow);
   }
 
-  async addContribution(
-    userId: string,
-    dto: CreateCarFundContributionDto,
-  ) {
+  async addContribution(userId: string, dto: CreateCarFundContributionDto) {
     const fund = await this.findFund(userId, true);
     const contributedAt = dto.contributedAt ?? new Date().toISOString();
     if (new Date(contributedAt).getTime() > Date.now()) {
@@ -169,7 +180,10 @@ export class CarFundService {
     }
 
     const summary = await this.toSummary(fund);
-    return { contribution: this.toContribution(data as ContributionRow), ...summary };
+    return {
+      contribution: this.toContribution(data as ContributionRow),
+      ...summary,
+    };
   }
 
   async listContributions(
@@ -197,6 +211,73 @@ export class CarFundService {
     );
   }
 
+  async recordSpending(userId: string, dto: CreateCarFundSpendingDto) {
+    const spentAt = dto.spentAt ?? new Date().toISOString();
+    if (new Date(spentAt).getTime() > Date.now()) {
+      throw new BadRequestException('spentAt cannot be in the future');
+    }
+
+    const { data, error } = await this.supabase.admin.rpc(
+      'record_car_fund_spending',
+      {
+        p_user_id: userId,
+        p_amount: dto.amount,
+        p_spent_at: spentAt,
+        p_note: dto.note?.trim() || null,
+      },
+    );
+
+    if (error) {
+      if (error.message.includes('car_fund_not_found')) {
+        throw new NotFoundException('Car Fund goal not found');
+      }
+      if (error.message.includes('car_fund_spending_exceeds_balance')) {
+        throw new BadRequestException(
+          'Spending cannot exceed your current Car Fund balance',
+        );
+      }
+      if (error.message.includes('invalid_car_fund_spending')) {
+        throw new BadRequestException('Invalid Car Fund spending details');
+      }
+      throw new InternalServerErrorException(
+        'Unable to record Car Fund spending',
+      );
+    }
+    if (!data) {
+      throw new InternalServerErrorException(
+        'Unable to record Car Fund spending',
+      );
+    }
+
+    const fund = await this.findFund(userId, true);
+    return {
+      spending: this.toSpending(data as SpendingRow),
+      ...(await this.toSummary(fund)),
+    };
+  }
+
+  async listSpending(userId: string, query: ListCarFundContributionsQueryDto) {
+    const fund = await this.findFund(userId, true);
+    const { data, count, error } = await this.supabase.admin
+      .from('car_fund_spending')
+      .select(SPENDING_COLUMNS, { count: 'exact' })
+      .eq('fund_id', fund.id)
+      .eq('user_id', userId)
+      .order('spent_at', { ascending: false })
+      .range(query.offset, query.offset + query.limit - 1);
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Unable to load Car Fund spending',
+      );
+    }
+    return paginate(
+      ((data ?? []) as SpendingRow[]).map((row) => this.toSpending(row)),
+      count ?? 0,
+      query,
+    );
+  }
+
   async deleteContribution(userId: string, contributionId: string) {
     const { data, error } = await this.supabase.admin
       .from('car_fund_contributions')
@@ -207,6 +288,11 @@ export class CarFundService {
       .maybeSingle();
 
     if (error) {
+      if (error.message.includes('car_fund_contribution_is_spent')) {
+        throw new BadRequestException(
+          'This contribution cannot be removed because part of it has already been recorded as spending',
+        );
+      }
       throw new InternalServerErrorException('Unable to delete contribution');
     }
     if (!data) throw new NotFoundException('Contribution not found');
@@ -234,7 +320,26 @@ export class CarFundService {
       );
       if ((data?.length ?? 0) < 1000) break;
     }
-    const balance = balanceMinor / 100;
+    let spentMinor = 0;
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await this.supabase.admin
+        .from('car_fund_spending')
+        .select('amount')
+        .eq('fund_id', fund.id)
+        .eq('user_id', fund.user_id)
+        .order('id')
+        .range(from, from + 999);
+
+      if (error) {
+        throw new InternalServerErrorException('Unable to calculate Car Fund');
+      }
+      spentMinor += (data ?? []).reduce(
+        (total, row) => total + Math.round(Number(row.amount) * 100),
+        0,
+      );
+      if ((data?.length ?? 0) < 1000) break;
+    }
+    const balance = (balanceMinor - spentMinor) / 100;
     const targetAmount = Number(fund.target_amount);
     const remaining = Math.max(0, targetAmount - balance);
     const daysRemaining = fund.target_date
@@ -269,6 +374,7 @@ export class CarFundService {
         remindersEnabled: fund.reminders_enabled,
       },
       balance,
+      spent: spentMinor / 100,
       remaining,
       progressPercent:
         targetAmount === 0
@@ -294,10 +400,17 @@ export class CarFundService {
     };
   }
 
-  private async findFund(
-    userId: string,
-    required: true,
-  ): Promise<CarFundRow>;
+  private toSpending(row: SpendingRow) {
+    return {
+      id: row.id,
+      amount: Number(row.amount),
+      spentAt: row.spent_at,
+      note: row.note,
+      createdAt: row.created_at,
+    };
+  }
+
+  private async findFund(userId: string, required: true): Promise<CarFundRow>;
   private async findFund(
     userId: string,
     required: false,
@@ -315,7 +428,8 @@ export class CarFundService {
     if (error) {
       throw new InternalServerErrorException('Unable to load Car Fund');
     }
-    if (!data && required) throw new NotFoundException('Car Fund goal not found');
+    if (!data && required)
+      throw new NotFoundException('Car Fund goal not found');
     return data as CarFundRow | null;
   }
 

@@ -7,11 +7,12 @@ import { apiRequest, getAccessToken, getApiUrl } from '../services/api';
 type Currency = string;
 
 interface RepairResponse {
-  id?: string;
-  message?: string;
-  data?: {
-    id?: string;
-  };
+  id: string;
+}
+
+interface RepairPart {
+  partName: string;
+  amount: string;
 }
 
 const currencies = [...CurrencyCodes]
@@ -33,11 +34,13 @@ export default function RepairsPage() {
   const navigate = useNavigate();
   const { vehicleId } = useParams<{ vehicleId: string }>();
   const receiptInput = useRef<HTMLInputElement>(null);
+  const submissionKey = useRef<{ signature: string; key: string } | null>(null);
 
   const [description, setDescription] = useState('');
   const [provider, setProvider] = useState('');
   const [currency, setCurrency] = useState<Currency>('NGN');
   const [amount, setAmount] = useState('');
+  const [parts, setParts] = useState<RepairPart[]>([]);
   const [repairDate, setRepairDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
@@ -69,6 +72,32 @@ export default function RepairsPage() {
       return;
     }
 
+    const repairParts: { partName: string; amount: number }[] = [];
+    for (const part of parts) {
+      const partName = part.partName.trim();
+      const partAmount = Number(part.amount);
+      if (!partName && !part.amount) continue;
+      if (
+        !partName ||
+        !part.amount ||
+        !Number.isFinite(partAmount) ||
+        partAmount < 0
+      ) {
+        setError(
+          'Enter both a part name and a valid part cost, or remove the empty part.',
+        );
+        return;
+      }
+      repairParts.push({ partName, amount: partAmount });
+    }
+
+    if (
+      repairParts.reduce((sum, part) => sum + part.amount, 0) > parsedAmount
+    ) {
+      setError('Part costs cannot exceed the total repair cost.');
+      return;
+    }
+
     if (receipt) {
       const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
@@ -91,9 +120,18 @@ export default function RepairsPage() {
         throw new Error('Your session has expired. Please log in again.');
       }
 
-      // Use one key for this submission. If the network fails and
-      // the user retries the same submission, reuse this key.
-      const idempotencyKey = crypto.randomUUID();
+      const repairData = {
+        workPerformed: description.trim(),
+        providerName: provider.trim() || undefined,
+        currency,
+        amount: parsedAmount,
+        repairDate,
+        parts: repairParts.length ? repairParts : undefined,
+      };
+      const signature = JSON.stringify(repairData);
+      if (submissionKey.current?.signature !== signature) {
+        submissionKey.current = { signature, key: crypto.randomUUID() };
+      }
 
       const repair = await apiRequest<RepairResponse>(
         `/api/vehicles/${encodeURIComponent(vehicleId)}/repairs`,
@@ -101,19 +139,13 @@ export default function RepairsPage() {
         {
           method: 'POST',
           headers: {
-            'Idempotency-Key': idempotencyKey,
+            'Idempotency-Key': submissionKey.current.key,
           },
-          body: JSON.stringify({
-            workPerformed: description.trim(),
-            providerName: provider.trim() || undefined,
-            currency,
-            amount: parsedAmount,
-            repairDate,
-          }),
+          body: JSON.stringify(repairData),
         },
       );
 
-      const repairId = repair.data?.id ?? repair.id;
+      const repairId = repair.id;
 
       if (receipt && repairId) {
         const formData = new FormData();
@@ -139,10 +171,12 @@ export default function RepairsPage() {
       }
 
       setSuccess("Repair saved to your car's story.");
+      submissionKey.current = null;
 
       setDescription('');
       setProvider('');
       setAmount('');
+      setParts([]);
       setReceipt(null);
 
       if (receiptInput.current) {
@@ -263,6 +297,88 @@ export default function RepairsPage() {
               />
             </div>
           </div>
+
+          <section
+            aria-labelledby="repair-parts-heading"
+            style={styles.partsSection}
+          >
+            <div style={styles.partsHeader}>
+              <div>
+                <h2 id="repair-parts-heading" style={styles.partsTitle}>
+                  Parts used
+                </h2>
+                <p style={styles.partsHint}>
+                  Optional cost breakdown; part costs are included in the total.
+                </p>
+              </div>
+              <button
+                type="button"
+                style={styles.addPartButton}
+                onClick={() =>
+                  setParts((current) => [
+                    ...current,
+                    { partName: '', amount: '' },
+                  ])
+                }
+              >
+                Add part
+              </button>
+            </div>
+            {parts.map((part, index) => (
+              <div key={index} style={styles.partRow}>
+                <label style={styles.field}>
+                  <span style={styles.partLabel}>Part name</span>
+                  <input
+                    value={part.partName}
+                    onChange={(event) =>
+                      setParts((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, partName: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    maxLength={100}
+                    placeholder="e.g. Brake pads"
+                    style={styles.input}
+                  />
+                </label>
+                <label style={styles.field}>
+                  <span style={styles.partLabel}>Cost ({currency})</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={part.amount}
+                    onChange={(event) =>
+                      setParts((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, amount: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder="0.00"
+                    style={styles.input}
+                  />
+                </label>
+                <button
+                  type="button"
+                  style={styles.removePartButton}
+                  onClick={() =>
+                    setParts((current) =>
+                      current.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                  aria-label={`Remove part ${index + 1}`}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </section>
 
           <button
             type="button"
@@ -403,6 +519,61 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: '12px',
     marginTop: '10px',
+  },
+
+  partsSection: {
+    marginTop: '28px',
+  },
+
+  partsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+
+  partsTitle: {
+    fontSize: '17px',
+    fontWeight: 700,
+  },
+
+  partsHint: {
+    color: '#71807c',
+    fontSize: '13px',
+    marginTop: '4px',
+  },
+
+  addPartButton: {
+    border: '1px solid #36745e',
+    borderRadius: '10px',
+    background: '#ffffff',
+    color: '#18352f',
+    padding: '9px 12px',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+
+  partRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) auto',
+    alignItems: 'end',
+    gap: '10px',
+    marginTop: '12px',
+  },
+
+  partLabel: {
+    display: 'block',
+    fontWeight: 600,
+    fontSize: '13px',
+    marginBottom: '8px',
+  },
+
+  removePartButton: {
+    border: 0,
+    background: 'transparent',
+    color: '#9b3e31',
+    padding: '12px 4px',
+    cursor: 'pointer',
   },
 
   field: {

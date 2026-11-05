@@ -1,17 +1,9 @@
 import { CountryCode, parsePhoneNumberFromString } from 'libphonenumber-js';
 
-/** Numbers typed without a country code (e.g. 0901...) are treated as belonging to this country. */
+/** Numbers typed without a country code (e.g. 0901...) are treated. */
 export const DEFAULT_PHONE_COUNTRY: CountryCode = 'NG';
 
-/**
- * Converts a phone number to international format (E.164).
- * 09012345678 -> +2349012345678
- * 0901 234 5678 -> +2349012345678
- * 2349012345678 -> +2349012345678
- * +2349012345678 -> +2349012345678
- * If the number isn't valid, the original value is returned unchanged so the
- * DTO validation can reject it with a clear message.
- */
+/** * Converts a phone number to international format (E.164). *. */
 export function normalizePhone(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();

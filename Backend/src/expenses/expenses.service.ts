@@ -37,10 +37,7 @@ function monthsEndingAt(year: number, month: number, count: number) {
   return out;
 }
 
-/**
- * Monthly expenses are calculated from repair records. There is no separate
- * expenses table. Only repairs on vehicles the user can access are counted.
- */
+/** * Monthly expenses are calculated from repair records. There is. */
 @Injectable()
 export class ExpensesService {
   constructor(

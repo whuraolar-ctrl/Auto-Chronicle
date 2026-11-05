@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { ArrowRight } from 'lucide-react';
-import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type SubmitEvent,
+} from 'react';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
 
@@ -17,6 +23,7 @@ interface CarFund {
 interface FundSummary {
   fund: CarFund | null;
   balance: number;
+  spent?: number;
   remaining?: number;
   progressPercent: number;
   suggestedContributions?: {
@@ -36,6 +43,174 @@ interface Contribution {
 interface ContributionList {
   data: Contribution[];
 }
+
+interface Spending {
+  id: string;
+  amount: number;
+  spentAt: string;
+  note: string | null;
+}
+
+interface SpendingList {
+  data: Spending[];
+}
+
+const currencyOptions = (
+  typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('currency')
+    : [
+        'AED',
+        'AFN',
+        'ALL',
+        'AMD',
+        'ANG',
+        'AOA',
+        'ARS',
+        'AUD',
+        'AWG',
+        'AZN',
+        'BAM',
+        'BBD',
+        'BDT',
+        'BGN',
+        'BHD',
+        'BIF',
+        'BMD',
+        'BND',
+        'BOB',
+        'BRL',
+        'BSD',
+        'BTN',
+        'BWP',
+        'BYN',
+        'BZD',
+        'CAD',
+        'CHF',
+        'CLP',
+        'CNY',
+        'COP',
+        'CRC',
+        'CUP',
+        'CVE',
+        'CZK',
+        'DJF',
+        'DKK',
+        'DOP',
+        'DZD',
+        'EGP',
+        'ETB',
+        'EUR',
+        'FJD',
+        'FKP',
+        'GBP',
+        'GEL',
+        'GHS',
+        'GIP',
+        'GMD',
+        'GNF',
+        'GTQ',
+        'GYD',
+        'HKD',
+        'HNL',
+        'HRK',
+        'HTG',
+        'HUF',
+        'IDR',
+        'ILS',
+        'INR',
+        'IQD',
+        'IRR',
+        'ISK',
+        'JMD',
+        'JOD',
+        'JPY',
+        'KES',
+        'KGS',
+        'KHR',
+        'KMF',
+        'KRW',
+        'KWD',
+        'KYD',
+        'KZT',
+        'LAK',
+        'LBP',
+        'LKR',
+        'LRD',
+        'LSL',
+        'LYD',
+        'MAD',
+        'MDL',
+        'MGA',
+        'MKD',
+        'MMK',
+        'MNT',
+        'MOP',
+        'MRU',
+        'MUR',
+        'MVR',
+        'MWK',
+        'MXN',
+        'MYR',
+        'MZN',
+        'NAD',
+        'NGN',
+        'NIO',
+        'NOK',
+        'NPR',
+        'NZD',
+        'OMR',
+        'PAB',
+        'PEN',
+        'PGK',
+        'PHP',
+        'PKR',
+        'PLN',
+        'PYG',
+        'QAR',
+        'RON',
+        'RSD',
+        'RUB',
+        'RWF',
+        'SAR',
+        'SBD',
+        'SCR',
+        'SEK',
+        'SGD',
+        'SHP',
+        'SLE',
+        'SOS',
+        'SRD',
+        'SSP',
+        'STN',
+        'SVC',
+        'SZL',
+        'THB',
+        'TJS',
+        'TMT',
+        'TND',
+        'TOP',
+        'TRY',
+        'TTD',
+        'TWD',
+        'TZS',
+        'UAH',
+        'UGX',
+        'USD',
+        'UYU',
+        'UZS',
+        'VES',
+        'VND',
+        'VUV',
+        'WST',
+        'XAF',
+        'XCD',
+        'XOF',
+        'XPF',
+        'YER',
+        'ZAR',
+        'ZMW',
+      ]
+).sort((a, b) => a.localeCompare(b));
 
 function messageFor(error: unknown, fallback: string): string {
   if (!axios.isAxiosError<{ message?: string | string[] }>(error)) {
@@ -66,6 +241,7 @@ function displayDate(value: string | null): string {
 export default function CarFundPage() {
   const [summary, setSummary] = useState<FundSummary | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [spending, setSpending] = useState<Spending[]>([]);
   const [targetAmount, setTargetAmount] = useState('');
   const [currency, setCurrency] = useState('NGN');
   const [targetDate, setTargetDate] = useState('');
@@ -74,9 +250,12 @@ export default function CarFundPage() {
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [contributionAmount, setContributionAmount] = useState('');
   const [contributionNote, setContributionNote] = useState('');
+  const [spendingAmount, setSpendingAmount] = useState('');
+  const [spendingNote, setSpendingNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingGoal, setSavingGoal] = useState(false);
   const [savingContribution, setSavingContribution] = useState(false);
+  const [savingSpending, setSavingSpending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -104,8 +283,14 @@ export default function CarFundPage() {
           { params: { page: 1, limit: 5 } },
         );
         setContributions(activity.data.data);
+        const spendingActivity = await api.get<SpendingList>(
+          '/car-fund/spending',
+          { params: { page: 1, limit: 5 } },
+        );
+        setSpending(spendingActivity.data.data);
       } else {
         setContributions([]);
+        setSpending([]);
       }
     } catch (requestError: unknown) {
       setError(messageFor(requestError, 'Unable to load Car Fund.'));
@@ -167,6 +352,27 @@ export default function CarFundPage() {
     }
   };
 
+  const handleRecordSpending = async (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSavingSpending(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post('/car-fund/spending', {
+        amount: Number(spendingAmount),
+        note: spendingNote.trim() || undefined,
+      });
+      setSpendingAmount('');
+      setSpendingNote('');
+      setSuccess('Your off-site Car Fund spending has been recorded.');
+      await loadFund();
+    } catch (requestError: unknown) {
+      setError(messageFor(requestError, 'Unable to record Car Fund spending.'));
+    } finally {
+      setSavingSpending(false);
+    }
+  };
+
   if (loading) {
     return (
       <AppPageLayout>
@@ -183,10 +389,50 @@ export default function CarFundPage() {
   const remaining =
     summary?.remaining ??
     Math.max(0, (fund?.targetAmount ?? 0) - (summary?.balance ?? 0));
+  const targetReached = Boolean(
+    fund && (summary?.balance ?? 0) >= fund.targetAmount,
+  );
+
+  const coinBackground = Array.from({ length: 16 }, (_, index) => {
+    const negativeDrift = index % 2 === 0 ? -1 : 1;
+
+    return {
+      left: 8 + ((index * 17) % 76),
+      size: 14 + (index % 5) * 5,
+      duration: 12 + (index % 4) * 3,
+      delay: index * 0.8,
+      drift: negativeDrift * (18 + (index % 5) * 10),
+      rotation: 80 + index * 18,
+    };
+  });
 
   return (
     <AppPageLayout>
-      <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
+      <div className="car-fund-scene mx-auto max-w-3xl overflow-hidden rounded-[28px]">
+        <div className="coin-background" aria-hidden="true">
+          {coinBackground.map((coin, index) => {
+            const coinStyle: CSSProperties = {
+              left: `${coin.left}%`,
+              width: `${coin.size}px`,
+              height: `${coin.size}px`,
+              animationDuration: `${coin.duration}s`,
+              animationDelay: `${coin.delay}s`,
+              ['--coin-drift' as string]: `${coin.drift}px`,
+              ['--coin-rotation' as string]: `${coin.rotation}deg`,
+              ['--coin-delay' as string]: `${index * 0.25}s`,
+            };
+
+            return (
+              <span
+                key={`coin-${index}`}
+                className="coin-asset"
+                style={coinStyle}
+              />
+            );
+          })}
+        </div>
+
+        <div className="relative space-y-5 p-4 sm:space-y-6 sm:p-6">
         <header>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-400">
             A cushion for car costs
@@ -235,15 +481,21 @@ export default function CarFundPage() {
             </div>
           </div>
           <h2 className="mt-5 text-lg font-semibold">
-            {fund ? 'You’re building a useful buffer.' : 'Start your car fund'}
+            {targetReached
+              ? 'You reached your Car Fund target.'
+              : fund
+                ? 'You’re building a useful buffer.'
+                : 'Start your car fund'}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            {fund
-              ? `${progress}% funded · ${money(remaining, currentCurrency)} remaining`
-              : 'Choose a goal that feels manageable and adjust it whenever you need.'}
+            {targetReached
+              ? 'Set a new target to keep saving. Your current balance will roll into the next goal.'
+              : fund
+                ? `${progress}% funded · ${money(remaining, currentCurrency)} remaining`
+                : 'Choose a goal that feels manageable and adjust it whenever you need.'}
           </p>
           {fund && (
-            <div className="mt-5 grid grid-cols-2 gap-3 text-left sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 text-left sm:grid-cols-4">
               <div className="rounded-xl bg-gray-950 p-3">
                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                   Target date
@@ -262,7 +514,15 @@ export default function CarFundPage() {
                     : 'Not set'}
                 </p>
               </div>
-              <div className="col-span-2 rounded-xl bg-gray-950 p-3 sm:col-span-1">
+              <div className="rounded-xl bg-gray-950 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                  Spent so far
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {money(summary?.spent ?? 0, currentCurrency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gray-950 p-3">
                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                   Reminder plan
                 </p>
@@ -281,7 +541,11 @@ export default function CarFundPage() {
                 Fund goal
               </p>
               <h2 className="mt-1 text-lg font-semibold">
-                {fund ? 'Update your target' : 'Set your target'}
+                {targetReached
+                  ? 'Choose your next target'
+                  : fund
+                    ? 'Update your target'
+                    : 'Set your target'}
               </h2>
             </div>
             {fund && (
@@ -295,7 +559,11 @@ export default function CarFundPage() {
               <span className="block font-medium">Target amount</span>
               <input
                 type="number"
-                min="0.01"
+                min={
+                  targetReached
+                    ? ((summary?.balance ?? 0) + 0.01).toFixed(2)
+                    : '0.01'
+                }
                 step="0.01"
                 value={targetAmount}
                 onChange={(event) => setTargetAmount(event.target.value)}
@@ -311,10 +579,11 @@ export default function CarFundPage() {
                 onChange={(event) => setCurrency(event.target.value)}
                 className="app-input"
               >
-                <option value="NGN">NGN · Nigerian naira</option>
-                <option value="USD">USD · US dollar</option>
-                <option value="GBP">GBP · British pound</option>
-                <option value="EUR">EUR · Euro</option>
+                {currencyOptions.map((code) => (
+                  <option key={code} value={code}>
+                    {code} · {new Intl.DisplayNames(undefined, { type: 'currency' }).of(code)}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="space-y-2 text-sm">
@@ -440,27 +709,106 @@ export default function CarFundPage() {
             </section>
 
             <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 sm:p-6">
+              <h2 className="text-lg font-semibold">Record money spent</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Reduce your tracked balance for car costs paid outside Auto
+                Chronicle.
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Available balance:{' '}
+                {money(summary?.balance ?? 0, currentCurrency)}
+              </p>
+              <form onSubmit={handleRecordSpending} className="mt-4 space-y-3">
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">
+                    Amount ({currentCurrency})
+                  </span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    max={summary?.balance ?? 0}
+                    step="0.01"
+                    value={spendingAmount}
+                    onChange={(event) => setSpendingAmount(event.target.value)}
+                    required
+                    className="app-input"
+                  />
+                </label>
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">
+                    What was it for? (optional)
+                  </span>
+                  <input
+                    value={spendingNote}
+                    onChange={(event) => setSpendingNote(event.target.value)}
+                    maxLength={500}
+                    placeholder="e.g. Replacement tyre"
+                    className="app-input"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={savingSpending || (summary?.balance ?? 0) <= 0}
+                  className="app-secondary-button w-full disabled:opacity-50"
+                >
+                  {savingSpending ? 'Recording...' : 'Record spending'}
+                </button>
+              </form>
+            </section>
+
+            <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Recent activity</h2>
-              {contributions.length ? (
+              {contributions.length || spending.length ? (
                 <ul className="mt-3 divide-y divide-gray-800">
-                  {contributions.map((contribution) => (
-                    <li
-                      key={contribution.id}
-                      className="flex items-center justify-between gap-3 py-3 first:pt-1"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {contribution.note || 'Car Fund contribution'}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {displayDate(contribution.contributedAt)}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold text-green-800">
-                        +{money(contribution.amount, currentCurrency)}
-                      </span>
-                    </li>
-                  ))}
+                  {[
+                    ...contributions.map((item) => ({
+                      id: item.id,
+                      date: item.contributedAt,
+                      note: item.note,
+                      amount: item.amount,
+                      direction: 'in' as const,
+                    })),
+                    ...spending.map((item) => ({
+                      id: item.id,
+                      date: item.spentAt,
+                      note: item.note,
+                      amount: item.amount,
+                      direction: 'out' as const,
+                    })),
+                  ]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
+                    )
+                    .slice(0, 5)
+                    .map((item) => (
+                      <li
+                        key={`${item.direction}-${item.id}`}
+                        className="flex items-center justify-between gap-3 py-3 first:pt-1"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {item.note ||
+                              (item.direction === 'in'
+                                ? 'Car Fund contribution'
+                                : 'Car Fund spending')}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {displayDate(item.date)}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-sm font-semibold ${
+                            item.direction === 'in'
+                              ? 'text-green-800'
+                              : 'text-orange-700'
+                          }`}
+                        >
+                          {item.direction === 'in' ? '+' : '−'}
+                          {money(item.amount, currentCurrency)}
+                        </span>
+                      </li>
+                    ))}
                 </ul>
               ) : (
                 <p className="mt-3 rounded-xl border border-dashed border-gray-800 px-4 py-8 text-center text-sm text-gray-500">
@@ -474,8 +822,9 @@ export default function CarFundPage() {
         <p className="rounded-xl border border-orange-900/50 bg-orange-950/30 p-4 text-xs leading-relaxed text-orange-300">
           <strong>Manual savings tracker:</strong> Auto Chronicle does not
           collect, hold, or transfer money. Record contributions you make
-          yourself.
+          yourself and manually log car spending to keep the balance accurate.
         </p>
+        </div>
       </div>
     </AppPageLayout>
   );

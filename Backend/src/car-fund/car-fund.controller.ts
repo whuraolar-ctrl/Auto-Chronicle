@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CarFundService } from './car-fund.service';
 import { CreateCarFundContributionDto } from './dto/create-car-fund-contribution.dto';
+import { CreateCarFundSpendingDto } from './dto/create-car-fund-spending.dto';
 import { ListCarFundContributionsQueryDto } from './dto/list-car-fund-contributions-query.dto';
 import { UpdateCarFundGoalDto } from './dto/update-car-fund-goal.dto';
 
@@ -39,6 +40,22 @@ export class CarFundController {
     @Body() dto: CreateCarFundContributionDto,
   ) {
     return this.carFund.addContribution(user.id, dto);
+  }
+
+  @Post('spending')
+  recordSpending(
+    @CurrentUser() user: User,
+    @Body() dto: CreateCarFundSpendingDto,
+  ) {
+    return this.carFund.recordSpending(user.id, dto);
+  }
+
+  @Get('spending')
+  listSpending(
+    @CurrentUser() user: User,
+    @Query() query: ListCarFundContributionsQueryDto,
+  ) {
+    return this.carFund.listSpending(user.id, query);
   }
 
   @Get('contributions')

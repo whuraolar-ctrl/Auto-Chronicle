@@ -230,7 +230,7 @@ export class IssuesService {
     return toIssueResponse(data as IssueRow);
   }
 
-  /** Loads an issue, then checks the user may access its vehicle. 404 either way. */
+  /** Loads an issue, then checks the user may access its. */
   private async findAuthorized(userId: string, issueId: string): Promise<IssueRow> {
     const { data, error } = await this.supabase.admin
       .from('issues')
