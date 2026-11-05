@@ -23,6 +23,7 @@ const VehicleDetailPage = lazy(() => import('./pages/VehicleDetailPage'));
 const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
 const WelcomePage = lazy(() => import('./pages/WelcomePage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const BillingCompletePage = lazy(() => import('./pages/BillingCompletePage'));
 
 function App() {
   return (
@@ -55,6 +56,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/billing/complete" element={<BillingCompletePage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/vehicles/new" element={<AddVehiclePage />} />
