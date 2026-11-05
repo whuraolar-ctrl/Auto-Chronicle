@@ -10,13 +10,14 @@ import {
 import type { User } from '@supabase/supabase-js';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { PlanGuard, RequireFeature } from '../billing/plan.guard';
 import { CreateFleetDto } from './dto/create-fleet.dto';
 import { CreateFleetInvitationDto } from './dto/create-fleet-invitation.dto';
 import { FleetInvitationsService } from './fleet-invitations.service';
 import { FleetService } from './fleet.service';
 
 @Controller('fleets')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, PlanGuard)
 export class FleetController {
   constructor(
     private readonly fleets: FleetService,
@@ -24,6 +25,7 @@ export class FleetController {
   ) {}
 
   @Post()
+  @RequireFeature('canUseFleet')
   create(@CurrentUser() user: User, @Body() dto: CreateFleetDto) {
     return this.fleets.create(user.id, dto);
   }
@@ -34,6 +36,7 @@ export class FleetController {
   }
 
   @Post(':fleetId/vehicles/:vehicleId')
+  @RequireFeature('canUseFleet')
   assignVehicle(
     @CurrentUser() user: User,
     @Param('fleetId', ParseUUIDPipe) fleetId: string,
@@ -43,6 +46,7 @@ export class FleetController {
   }
 
   @Post(':fleetId/invitations')
+  @RequireFeature('canInviteDrivers')
   inviteDriver(
     @CurrentUser() user: User,
     @Param('fleetId', ParseUUIDPipe) fleetId: string,

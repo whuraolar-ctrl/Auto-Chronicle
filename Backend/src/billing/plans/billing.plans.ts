@@ -1,4 +1,4 @@
-export const PLAN_CODES = ['owner_pro', 'fleet'] as const;
+export const PLAN_CODES = ['premium', 'fleet'] as const;
 export const BILLING_INTERVALS = ['monthly', 'yearly'] as const;
 export const BILLING_CURRENCIES = ['NGN', 'USD'] as const;
 
@@ -6,48 +6,66 @@ export type PlanCode = (typeof PLAN_CODES)[number];
 export type BillingInterval = (typeof BILLING_INTERVALS)[number];
 export type BillingCurrency = (typeof BILLING_CURRENCIES)[number];
 
+/** Free tier (no active paid subscription). */
+export const FREE_TIER = {
+  maxVehicles: 1,
+  canUseFleet: false,
+  canInviteDrivers: false,
+  canExport: false,
+} as const;
+
+/** Practically unlimited for Fleet plan checks. */
+export const UNLIMITED_VEHICLES = 100_000;
+
 export interface PlanDefinition {
   code: PlanCode;
   name: string;
   description: string;
-  /** true: the price is per vehicle and multiplied by the quantity chosen. */
   perVehicle: boolean;
   maxQuantity: number;
-  /** Vehicles the plan covers (for flat plans). null = the quantity bought. */
+  /** null = unlimited (Fleet). */
   includedVehicles: number | null;
-  /** Price in MINOR units (kobo / cents). Per vehicle when perVehicle is true. */
+  canUseFleet: boolean;
+  canInviteDrivers: boolean;
+  canExport: boolean;
+  /** Prices in MINOR units (kobo / cents). */
   prices: Record<BillingCurrency, Record<BillingInterval, number>>;
 }
 
-/** * GROUP DECISION: the prices below are PLACEHOLDERS to test. */
 export const PLANS: Record<PlanCode, PlanDefinition> = {
-  owner_pro: {
-    code: 'owner_pro',
-    name: 'Owner Pro',
-    description: 'For owners with a few vehicles: all reminders, exports and records.',
+  premium: {
+    code: 'premium',
+    name: 'Premium',
+    description:
+      'For individual car owners who want full vehicle management and financial planning.',
     perVehicle: false,
     maxQuantity: 1,
-    includedVehicles: 5,
+    includedVehicles: 3,
+    canUseFleet: false,
+    canInviteDrivers: false,
+    canExport: true,
     prices: {
-      NGN: { monthly: 600_000, yearly: 6_000_000 },
-      USD: { monthly: 900, yearly: 9_000 },
+      NGN: { monthly: 250_000, yearly: 2_500_000 }, // ₦2,500 / ₦25,000
+      USD: { monthly: 200, yearly: 2_000 },
     },
   },
   fleet: {
     code: 'fleet',
     name: 'Fleet',
-    description: 'For fleet owners: priced per vehicle, with driver seats and reports.',
-    perVehicle: true,
-    maxQuantity: 200,
-    includedVehicles: null,
+    description: 'For individuals and businesses managing multiple vehicles.',
+    perVehicle: false,
+    maxQuantity: 1,
+    includedVehicles: null, // unlimited
+    canUseFleet: true,
+    canInviteDrivers: true,
+    canExport: true,
     prices: {
-      NGN: { monthly: 250_000, yearly: 2_500_000 },
-      USD: { monthly: 500, yearly: 5_000 },
+      NGN: { monthly: 500_000, yearly: 5_000_000 }, // ₦5,000 / ₦50,000
+      USD: { monthly: 400, yearly: 4_000 },
     },
   },
 };
 
-/** The exact amount to charge, in minor units. Throws if. */
 export function priceInMinorUnits(
   plan: PlanDefinition,
   currency: BillingCurrency,

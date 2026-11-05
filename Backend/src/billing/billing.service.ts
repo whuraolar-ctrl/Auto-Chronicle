@@ -15,9 +15,27 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { User } from '@supabase/supabase-js';
 import { SupabaseService } from '../supabase/supabase.service';
-import { PLANS, PlanCode, priceInMinorUnits } from './plans/billing.plans';
+import {
+  FREE_TIER,
+  PLANS,
+  PlanCode,
+  UNLIMITED_VEHICLES,
+  priceInMinorUnits,
+} from './plans/billing.plans';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { PaystackClient } from '../common/paystack/paystack.client';
+
+/** What the signed-in user is allowed to do right now. */
+export type Entitlements = {
+  plan: string;
+  planName: string;
+  status: 'free' | 'active' | 'expired';
+  maxVehicles: number;
+  canUseFleet: boolean;
+  canInviteDrivers: boolean;
+  canExport: boolean;
+  isPaid: boolean;
+};
 
 /** Accept only payment references we issued ourselves. */
 const REFERENCE_PATTERN = /^AC-[A-Za-z0-9-]{8,80}$/;
@@ -53,7 +71,6 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     void this.expireLapsed();
     this.expiryTimer = setInterval(() => void this.expireLapsed(), 60 * 60 * 1000);
-    // Keep the timer from blocking shutdown.
     (this.expiryTimer as unknown as { unref?: () => void }).unref?.();
   }
 
@@ -105,10 +122,11 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
 
     const end = new Date(String(data.current_period_end));
     const stillPaid = end.getTime() > Date.now();
+    const planCode = String(data.plan) as PlanCode;
 
     return {
-      plan: String(data.plan),
-      planName: PLANS[data.plan as PlanCode]?.name ?? String(data.plan),
+      plan: planCode,
+      planName: PLANS[planCode]?.name ?? planCode,
       status: (stillPaid ? 'active' : 'expired') as 'active' | 'expired',
       billingInterval: String(data.billing_interval),
       quantity: Number(data.quantity),
@@ -116,6 +134,57 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       amount: Number(data.amount),
       currentPeriodEnd: end.toISOString(),
       daysLeft: stillPaid ? Math.ceil((end.getTime() - Date.now()) / 86_400_000) : 0,
+    };
+  }
+
+  /**
+   * Resolves what this user is allowed to do based on their active subscription.
+   * Free / expired users get FREE_TIER limits.
+   */
+  async getEntitlements(userId: string): Promise<Entitlements> {
+    const sub = await this.getSubscription(userId);
+
+    if (sub.status !== 'active') {
+      return {
+        plan: 'free',
+        planName: 'Free',
+        status: sub.status === 'expired' ? 'expired' : 'free',
+        maxVehicles: FREE_TIER.maxVehicles,
+        canUseFleet: FREE_TIER.canUseFleet,
+        canInviteDrivers: FREE_TIER.canInviteDrivers,
+        canExport: FREE_TIER.canExport,
+        isPaid: false,
+      };
+    }
+
+    const planCode = sub.plan as PlanCode;
+    const def = PLANS[planCode];
+
+    if (!def) {
+      return {
+        plan: 'free',
+        planName: 'Free',
+        status: 'free',
+        maxVehicles: FREE_TIER.maxVehicles,
+        canUseFleet: false,
+        canInviteDrivers: false,
+        canExport: false,
+        isPaid: false,
+      };
+    }
+
+    const maxVehicles =
+      def.includedVehicles == null ? UNLIMITED_VEHICLES : def.includedVehicles;
+
+    return {
+      plan: planCode,
+      planName: def.name,
+      status: 'active',
+      maxVehicles,
+      canUseFleet: def.canUseFleet,
+      canInviteDrivers: def.canInviteDrivers,
+      canExport: def.canExport,
+      isPaid: true,
     };
   }
 
@@ -132,6 +201,10 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     }
 
     const plan = PLANS[dto.plan];
+    if (!plan) {
+      throw new BadRequestException('Unknown plan');
+    }
+
     const quantity = plan.perVehicle ? (dto.quantity ?? 1) : 1;
     if (quantity < 1 || quantity > plan.maxQuantity) {
       throw new BadRequestException(`Choose between 1 and ${plan.maxQuantity} vehicles`);
@@ -177,7 +250,6 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     if (insertError) throw new InternalServerErrorException('Unable to start the payment');
 
     try {
-      // Redirect back here after a Paystack-hosted payment flow.
       const callbackUrl = `${this.config.getOrThrow<string>('FRONTEND_URL')}/billing/complete`;
 
       const checkout = await this.paystack.initialize({
@@ -207,8 +279,8 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  
   // Step 2: confirm and settle a payment.
+
   /**
    * Verify the payment with Paystack and apply it once.
    * `userId` restricts checks to the signed-in user's own payment.
@@ -223,7 +295,6 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException('Payment not found');
     }
 
-    // Ignore already settled or closed payments; they cannot be credited twice.
     if (payment.status !== 'pending') {
       return {
         status: payment.status,
@@ -235,7 +306,6 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     const verification = await this.paystack.verify(reference);
 
     if (verification.status === 'success') {
-      
       const { error } = await this.supabase.admin.rpc('settle_payment', {
         p_reference: reference,
         p_amount_minor: verification.amountMinor,
@@ -261,14 +331,12 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       return { status: 'failed', subscription: null };
     }
 
-    // Leave pending payments alone while verification is still in progress.
     return { status: 'pending', subscription: null };
   }
 
   private async handleSettleError(message: string, reference: string): Promise<never> {
     switch (message) {
       case 'AMOUNT_MISMATCH':
-        // Reject mismatched amount/currency before crediting anything.
         this.logger.error(`SECURITY: amount or currency mismatch for ${reference}`);
         await this.supabase.admin
           .from('payments')
@@ -304,13 +372,12 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     return (data as PaymentRow | null) ?? null;
   }
 
-  // Paystack sends webhook notifications when a charge succeeds.
+  // Paystack webhook.
 
   async handleWebhook(rawBody: Buffer | undefined, signature: string | undefined) {
     if (!this.paystack.isConfigured()) {
       throw new ServiceUnavailableException('Payments are not available yet');
     }
-    // Verify the payload signature before doing anything.
     if (!rawBody || !this.hasValidSignature(rawBody, signature)) {
       throw new UnauthorizedException('Invalid signature');
     }
@@ -322,25 +389,20 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Invalid payload');
     }
 
-    // Only successful charges trigger settlement.
     if (event.event !== 'charge.success') return { received: true };
 
-    // Ignore empty or unexpected references.
     const reference = event.data?.reference;
     if (typeof reference !== 'string' || !REFERENCE_PATTERN.test(reference)) {
       return { received: true };
     }
 
-    // Confirm with Paystack and settle once, even if the webhook is trusted.
     try {
       await this.verifyAndSettle(reference);
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        // Confirm the issue so Paystack stops retrying.
         this.logger.warn(`Webhook for ${reference} was not applied`);
         return { received: true };
       }
-      // Retry transient failures so Paystack can resend later.
       throw error;
     }
 
