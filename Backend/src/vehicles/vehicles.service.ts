@@ -1,8 +1,11 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { BillingService } from '../billing/billing.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { ListVehiclesQueryDto } from './dto/list-vehicle-query.dto';
@@ -10,7 +13,6 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 
 const TABLE = 'vehicles';
 
-// DTO (camelCase) -> database column (snake_case)
 const COLUMN_MAP: Record<string, string> = {
   name: 'name',
   plateNumber: 'plate_number',
@@ -34,12 +36,14 @@ const COLUMN_MAP: Record<string, string> = {
 
 @Injectable()
 export class VehiclesService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly billing: BillingService,
+  ) {}
 
-
-private get db() {
-  return this.supabase.admin;
-}
+  private get db() {
+    return this.supabase.admin;
+  }
 
   private toRow(dto: CreateVehicleDto | UpdateVehicleDto) {
     const row: Record<string, unknown> = {};
@@ -52,6 +56,33 @@ private get db() {
   }
 
   async create(userId: string, dto: CreateVehicleDto) {
+    const entitlements = await this.billing.getEntitlements(userId);
+
+    const { count, error: countError } = await this.db
+      .from(TABLE)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_archived', false);
+
+    if (countError) {
+      throw new InternalServerErrorException(countError.message);
+    }
+
+    const currentCount = count ?? 0;
+    if (currentCount >= entitlements.maxVehicles) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          code: 'VEHICLE_LIMIT_REACHED',
+          message: `Your ${entitlements.planName} plan allows up to \( {entitlements.maxVehicles} vehicle \){entitlements.maxVehicles === 1 ? '' : 's'}. Upgrade to add more.`,
+          plan: entitlements.plan,
+          maxVehicles: entitlements.maxVehicles,
+          currentVehicles: currentCount,
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
     const { data, error } = await this.db
       .from(TABLE)
       .insert({ ...this.toRow(dto), user_id: userId })
@@ -63,29 +94,29 @@ private get db() {
   }
 
   async findAll(userId: string, query: ListVehiclesQueryDto) {
-  const { page, limit, offset } = query;
-  const to = offset + limit - 1;
+    const { page, limit, offset } = query;
+    const to = offset + limit - 1;
 
-  const { data, error, count } = await this.db
-    .from(TABLE)
-    .select('*', { count: 'exact' })
-    .eq('user_id', userId)
-    .eq('is_archived', query.archived ?? false)
-    .order('created_at', { ascending: false })
-    .range(offset, to);
+    const { data, error, count } = await this.db
+      .from(TABLE)
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('is_archived', query.archived ?? false)
+      .order('created_at', { ascending: false })
+      .range(offset, to);
 
-  if (error) throw new InternalServerErrorException(error.message);
+    if (error) throw new InternalServerErrorException(error.message);
 
-  return {
-    data,
-    meta: {
-      page,
-      limit,
-      total: count ?? 0,
-      totalPages: Math.ceil((count ?? 0) / limit),
-    },
-  };
-}
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total: count ?? 0,
+        totalPages: Math.ceil((count ?? 0) / limit),
+      },
+    };
+  }
 
   async findOne(userId: string, id: string) {
     const { data, error } = await this.db
@@ -103,7 +134,7 @@ private get db() {
   async update(userId: string, id: string, dto: UpdateVehicleDto) {
     const row = this.toRow(dto);
     if (Object.keys(row).length === 0) {
-      return this.findOne(userId, id); // nothing to change
+      return this.findOne(userId, id);
     }
 
     const { data, error } = await this.db
