@@ -2,6 +2,10 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import AppPageLayout from '../components/AppPageLayout';
 import { api } from '../services/api';
+import { useEntitlements } from '../hooks/useEntitlements';
+import UpgradePrompt from '../components/UpgradePrompt';
+import { downloadExpensesCsv } from '../services/exportExpenses';
+import { isUpgradeError, upgradeMessage } from '../services/billing';
 
 interface ExpenseBreakdown {
   amount: number | string;
@@ -62,6 +66,28 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<MonthlyExpense | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { entitlements, loading: planLoading } = useEntitlements();
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const month = expenses?.month ?? new Date().getMonth() + 1;
+  const year = expenses?.year ?? new Date().getFullYear();
+
+  async function handleExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadExpensesCsv({ month, year, months: 6 });
+    } catch (err) {
+      if (isUpgradeError(err)) {
+        setExportError(upgradeMessage(err));
+      } else {
+        setExportError('Could not download the CSV. Please try again.');
+      }
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     const currentDate = new Date();
@@ -188,6 +214,29 @@ export default function ExpensesPage() {
           </div>
           <p className="text-sm text-gray-400">{selectedMonthLabel}</p>
         </header>
+        {!planLoading && !entitlements.canExport && (
+    <UpgradePrompt
+      compact
+      message="Downloadable expense reports are on Premium and Fleet."
+    />
+  )}
+
+  {entitlements.canExport && (
+    <button
+      type="button"
+      disabled={exporting || !expenses}
+      onClick={() => void handleExport()}
+      className="rounded-lg bg-[#ffb703] px-4 py-2 text-sm font-semibold text-[#1a1400] disabled:opacity-50"
+    >
+      {exporting ? 'Preparing CSV…' : 'Download CSV'}
+    </button>
+  )}
+
+  {exportError && (
+    <p className="mt-2 text-sm text-red-300" role="alert">
+      {exportError}
+    </p>
+  )}
 
         <section className="grid gap-4 md:grid-cols-[1fr_1.5fr]">
           <div className="relative overflow-hidden rounded-2xl border border-orange-900/50 bg-gradient-to-br from-orange-950/80 via-gray-900 to-gray-900 p-5 sm:p-7">

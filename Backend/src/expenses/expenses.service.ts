@@ -189,6 +189,74 @@ export class ExpensesService {
       byVehicle,
     };
   }
+  /**
+   * Builds a CSV for the selected month: by-vehicle and by-part rows.
+   * Caller must enforce canExport (PlanGuard on the route).
+   */
+  async exportMonthlyCsv(userId: string, query: MonthlyExpensesQueryDto) {
+    const data = await this.monthly(userId, query);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const monthLabel = `\( {data.year}- \){pad(data.month)}`;
+
+    const escape = (value: string | number | null | undefined) => {
+      const raw = value == null ? '' : String(value);
+      if (/[",\n\r]/.test(raw)) {
+        return `"${raw.replace(/"/g, '""')}"`;
+      }
+      return raw;
+    };
+
+    const lines: string[] = [];
+    lines.push('section,label,amount,currency,month');
+
+    lines.push(
+      [
+        'summary',
+        'total',
+        escape(data.total),
+        escape(data.currency),
+        escape(monthLabel),
+      ].join(','),
+    );
+    lines.push(
+      [
+        'summary',
+        'unallocated',
+        escape(data.unallocatedTotal),
+        escape(data.currency),
+        escape(monthLabel),
+      ].join(','),
+    );
+
+    for (const row of data.byVehicle) {
+      const label = [row.name, row.plateNumber].filter(Boolean).join(' · ') || row.vehicleId;
+      lines.push(
+        [
+          'vehicle',
+          escape(label),
+          escape(row.amount),
+          escape(data.currency),
+          escape(monthLabel),
+        ].join(','),
+      );
+    }
+
+    for (const row of data.byPart) {
+      lines.push(
+        [
+          'part',
+          escape(row.partName),
+          escape(row.amount),
+          escape(data.currency),
+          escape(monthLabel),
+        ].join(','),
+      );
+    }
+
+    const csv = lines.join('\n') + '\n';
+    const filename = `auto-chronicle-expenses-${monthLabel}.csv`;
+    return { filename, csv };
+                                            }
 
   private async preferredCurrency(userId: string): Promise<string | null> {
     const { data } = await this.supabase.admin
