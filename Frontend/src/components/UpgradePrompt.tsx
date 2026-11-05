@@ -19,13 +19,16 @@ export default function UpgradePrompt({
           gap: 12,
           padding: '10px 14px',
           borderRadius: 10,
-          background: 'rgba(255, 183, 3, 0.1)',
-          border: '1px solid rgba(255, 183, 3, 0.35)',
-          color: '#e8ecea',
+          background: 'rgba(255, 183, 3, 0.18)',
+          border: '1px solid rgba(217, 119, 6, 0.45)',
+          color: '#1a1400',           
           fontSize: 13,
+          fontWeight: 500,
         }}
       >
-        <span>{message}</span>
+        <span style={{ color: '#1a1400', lineHeight: 1.4 }}>
+          {message}
+        </span>
         <Link
           to="/pricing"
           style={{
@@ -43,7 +46,6 @@ export default function UpgradePrompt({
       </div>
     );
   }
-
   return (
     <div
       style={{
