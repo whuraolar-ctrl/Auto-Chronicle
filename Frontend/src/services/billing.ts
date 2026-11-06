@@ -11,6 +11,21 @@ export type Entitlements = {
   isPaid: boolean;
 };
 
+export type CheckoutRequest = {
+  plan: 'premium' | 'fleet';
+  interval: 'monthly' | 'yearly';
+  currency: 'NGN' | 'USD';
+  quantity?: number;
+};
+
+export type CheckoutResponse = {
+  reference: string;
+  accessCode: string;
+  authorizationUrl: string;
+  amount: number;
+  currency: string;
+};
+
 export async function fetchEntitlements(): Promise<Entitlements> {
   const { data } = await api.get<Entitlements>('/billing/entitlements');
   return data;
@@ -39,4 +54,11 @@ export function upgradeMessage(error: unknown): string {
     ax.response?.data?.message ||
     'This feature requires a paid plan. Upgrade to continue.'
   );
+}
+
+export async function startCheckout(
+  body: CheckoutRequest,
+): Promise<CheckoutResponse> {
+  const { data } = await api.post<CheckoutResponse>('/billing/checkout', body);
+  return data;
 }
