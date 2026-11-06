@@ -9,6 +9,9 @@ import {
   Zap,
 } from 'lucide-react';
 import '../components/pricing/pricing.css';
+import { startCheckout } from '../services/billing';
+import { getAccessToken } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 type BillingCycle = 'monthly' | 'yearly';
 
@@ -121,6 +124,36 @@ function formatPrice(amount: number, currency: string): string {
 
 export default function PricingPage() {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const navigate = useNavigate();
+  const [paying, setPaying] = useState(false);
+
+  async function handleSelectPlan(planId: string) {
+    if (planId === 'free') {
+      navigate('/dashboard');
+      return;
+    }
+    if (!getAccessToken()) {
+      navigate('/login');
+      return;
+    }
+    if (planId !== 'premium' && planId !== 'fleet') return;
+
+    setPaying(true);
+    try {
+      const checkout = await startCheckout({
+        plan: planId,
+        interval: cycle,
+        currency: 'NGN',
+        quantity: 1,
+      });
+
+      window.location.href = checkout.authorizationUrl;
+    } catch (err) {
+      console.error(err);
+      alert('Could not start payment. Please try again or sign in again.')
+      setPaying(false);
+    }
+  }
 
   return (
     <div className="pricing-root">
@@ -198,14 +231,10 @@ export default function PricingPage() {
                 <button
                   type="button"
                   className={`pricing-cta ${plan.ctaVariant}`}
-                  onClick={() => {
-                    console.log(`Selected plan: \( {plan.id} ( \){cycle})`);
-                    alert(
-                      `You selected \( {plan.name} ( \){cycle}). Payment integration next.`,
-                    );
-                  }}
+                  disabled={paying}
+                  onClick={() => void handleSelectPlan(plan.id)}
                 >
-                  {plan.cta}
+                  {paying ? 'Redirecting to Paystack...' : plan.cta}
                 </button>
 
                 <ul className="pricing-features">

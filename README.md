@@ -17,8 +17,11 @@ Mobile first app for tracking a car's repair history and building a savings habi
 
 ## Folders
 - `/Frontend` — React/Vite client app
+- `/Frontend/src/pages` — application screens including `AdminDashboardPage.tsx`, `PricingPage.tsx`, and `AcceptInvitationPage.tsx`
 - `/Backend` — NestJS API and server logic
-- `/supabase/migrations` — ordered database migrations
+- `/Backend/src/admin` — admin overview and role checks for the admin dashboard
+- `/Backend/src/billing` — subscription, Paystack checkout, verification, and webhook handling
+- `/supabase/migrations` — ordered database migrations including `20261027000000_admin_and_billing_foundation.sql` and `20261102000000_paystack_billing.sql`
 
 ## Running locally
 
@@ -42,6 +45,8 @@ Protected page URLs:
 | Password recovery | `/forgot-password`, `/reset-password` | Available |
 | Auth callback / profile completion | `/auth/callback`, `/complete-profile` | Available; verify Supabase redirect configuration |
 | Fleet dashboard | `/dashboard` | Connected; requires membership in at least one fleet |
+| Admin dashboard | `/admin` | Available; admin-only overview and account checks |
+| Pricing / plan selection | `/pricing` | Connected; checkout flow uses billing plan selection and Paystack redirects |
 | Submit an issue report | `/reports/new` | Dashboard-accessible; select an active vehicle before submitting |
 | Expense analytics | `/expenses` | Connected; requires sign-in and repair records |
 | Repairs | `/vehicles/:vehicleId/repairs/new` | Repair and optional part breakdown entry; requires the repairs migration |
@@ -68,5 +73,7 @@ Protected page URLs:
 - To enable email delivery locally, create a Resend account, add and verify a domain in Resend (including its requested DNS records), and create an API key. Put `RESEND_API_KEY` and `EMAIL_FROM` in `Backend/.env`, for example `EMAIL_FROM="Auto-Chronicle <reminders@your-verified-domain.example>"`. Use an address on the verified domain. Do not commit `.env` or put the API key in frontend code. For deployment, the cloud engineer should add these as encrypted backend service environment variables/secrets, verify the sender domain with DNS, redeploy, and check the provider's delivery logs. Resend may restrict testing to the account owner's address until a sender domain is verified.
 - **Service reminder email** (example): “Hello Ada, This is a friendly reminder that Corolla is due for service on 2026-10-20. Booking a service appointment can help you stay ahead of maintenance and keep your vehicle in good condition. You can review the vehicle and update its service date in Auto-Chronicle once the service is complete. Take care, The Auto-Chronicle team.”
 - **Car Fund email** (example): “Hello Ada, This is your weekly Car Fund reminder. You planned to set aside NGN 5,000.00 toward your goal of NGN 500,000.00. Your current target date is 2027-10-16. When you have made a contribution outside the app, you can record it in Car Fund to keep your progress up to date. Auto-Chronicle does not collect, hold, or transfer this money; this reminder does not make a payment. Every step toward your goal counts. The Auto-Chronicle team.”
-- Apply database migrations from the repository-root `/supabase/migrations` directory in filename order: `001_profiles.sql`, `002_profile_vehicles_issues.sql`, then timestamped migrations. Do not edit/re-run migrations already applied to a shared database; check the Supabase migration history first and apply only pending migrations. The Car Fund/reminder schema and RPCs are in `20261016000003_car_fund_and_email_reminders.sql`; the persistent notifications table and policies are in `20261019000000_persistent_notifications.sql`.
+- Admin and billing are wired through new backend modules: `GET /api/admin/me` and `GET /api/admin/overview?days=30` return admin session data and a summary snapshot; these routes are guarded by the admin role check in `Backend/src/admin`.
+- Billing plans and subscriptions are handled by `Backend/src/billing`: `GET /api/billing/plans`, `GET /api/billing/subscription`, `GET /api/billing/entitlements`, `POST /api/billing/checkout`, `GET /api/billing/verify`, and `POST /api/billing/webhook` integrate plan selection, Paystack checkout, transaction verification, and webhook settlement.
+- Apply database migrations from the repository-root `/supabase/migrations` directory in filename order: `001_profiles.sql`, `002_profile_vehicles_issues.sql`, then timestamped migrations. Do not edit/re-run migrations already applied to a shared database; check the Supabase migration history first and apply only pending migrations. The Car Fund/reminder schema and RPCs are in `20261016000003_car_fund_and_email_reminders.sql`; the persistent notifications table and policies are in `20261019000000_persistent_notifications.sql`; the admin/billing foundation is in `20261027000000_admin_and_billing_foundation.sql`, and the Paystack integration is in `20261102000000_paystack_billing.sql`.
 - Profile photos use the public `profile-avatars` Storage bucket, restricted to JPEG, PNG, and WebP files up to 5 MB. The bucket and user-folder upload policy, as well as the `profiles.avatar_url` column, are created by `20261020000000_profile_avatars.sql`.
